@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOMES 기획보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=7ba7a90e1d62f8383fcc7847dd0e1524&autoload=false&libraries=services"></script>
+<style>
+:root {
+  --yellow: #F5C518;
+  --yellow-light: #FFF9E6;
+  --dark: #1A1A1A;
+  --dark2: #242424;
+  --dark3: #333333;
+  --white: #FFFFFF;
+  --gray: #888888;
+  --light: #F7F7F7;
+  --border: #E5E5E5;
+  --text: #222222;
+  --text-sub: #666666;
+  --zone-parking: #78909C;
+  --zone-lobby: #5C6BC0;
+  --zone-common: #26A69A;
+  --zone-residential: #4CAF50;
+  --zone-terrace: #FFA726;
+  --zone-rooftop: #42A5F5;
+  --p1: #4CAF50; --p2: #2196F3; --p3: #FF9800; --p4: #9C27B0;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  background: #EBEBEB;
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Header ── */
+.header {
+  background: var(--dark);
+  height: 60px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  border-bottom: 3px solid var(--yellow);
+}
+.logo { color: var(--yellow); font-size: 17px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; }
+.pj-input-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+.pj-label { color: #888; font-size: 11px; white-space: nowrap; }
+.pj-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #3A3A3A;
+  color: #FFF;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 4px 8px;
+  outline: none;
+  font-family: inherit;
+}
+.pj-input::placeholder { color: #555; }
+.pj-input:focus { border-bottom-color: var(--yellow); }
+.header-meta { display: flex; align-items: center; gap: 8px; }
+.header-meta input {
+  background: transparent;
+  border: 1px solid #3A3A3A;
+  color: #ccc;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  outline: none;
+}
+.header-meta input:focus { border-color: var(--yellow); }
+.btn {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.btn:hover { opacity: 0.82; }
+.btn-primary { background: var(--yellow); color: var(--dark); }
+.btn-outline { background: transparent; border: 1px solid #1A1A1A; color: #1A1A1A; }
+.pj-header .btn-outline { border-color: #444; color: #ccc; }
+.btn-sm { padding: 5px 12px; font-size: 11px; }
+
+/* ── Tab Nav ── */
+.tab-nav {
+  background: var(--dark2);
+  display: flex;
+  padding: 0 28px;
+  border-bottom: 1px solid #2E2E2E;
+  overflow-x: auto;
+}
+.tab-nav::-webkit-scrollbar { height: 3px; }
+.tab-nav::-webkit-scrollbar-thumb { background: #444; }
+.tab-btn {
+  padding: 13px 18px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #777;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: #bbb; }
+.tab-btn.active { color: var(--yellow); border-bottom-color: var(--yellow); }
+
+/* ── Content ── */
+.content { padding: 28px; max-width: 1440px; margin: 0 auto; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Section ── */
+.section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--yellow); }
+.section-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.stag { background: var(--yellow); color: var(--dark); font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
+
+/* ── Grid ── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+/* ── Form ── */
+.fgroup { margin-bottom: 12px; }
+.flabel { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+.finput, .fselect, .ftextarea {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  color: var(--text);
+  background: #fff;
+  transition: border-color 0.15s;
+}
+.finput:focus, .fselect:focus, .ftextarea:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(245,197,24,0.1); }
+.ftextarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.finput-inline { border: none; background: transparent; font-size: 13px; padding: 3px 6px; outline: none; width: 100%; font-family: inherit; }
+.finput-inline:focus { background: var(--yellow-light); border-radius: 4px; }
+
+/* ── Table ── */
+.tbl-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--dark); color: #fff; padding: 10px 12px; font-size: 11px; font-weight: 700; text-align: left; white-space: nowrap; }
+tbody td { padding: 8px 12px; border-bottom: 1px solid #F0F0F0; vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #FFFDF0; }
+tfoot td { background: var(--yellow-light); font-weight: 700; padding: 10px 12px; border-top: 2px solid var(--yellow); font-size: 12px; }
+
+/* ── Zone badges ── */
+.zbadge { display: inline-block; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #fff; }
+
+/* ── Card ── */
+.card { background: var(--light); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+
+/* ── Persona ── */
+.persona-col { border: 1px solid var(--border); border-radius: 12px; overflow: visible; position: relative; background: #fff; }
+.persona-hd { padding: 14px 48px 14px 18px; color: #fff; display: flex; align-items: center; gap: 10px; border-radius: 12px 12px 0 0; }
+.persona-col .persona-delete { position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(255,255,255,0.25); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; padding: 0; transition: background 0.15s; }
+.persona-col .persona-delete:hover { background: rgba(255,255,255,0.45); }
+.persona-hd .rank { font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.persona-hd .name-input { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 700; outline: none; flex: 1; font-family: inherit; }
+.persona-hd .name-input::placeholder { color: rgba(255,255,255,0.5); }
+.persona-body { padding: 16px; }
+
+/* ── Program ── */
+.prog-section { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.prog-hd { padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.prog-hd-left { display: flex; align-items: center; gap: 8px; }
+.prog-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.prog-body { padding: 8px 16px; }
+.prog-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #F5F5F5; }
+.prog-item:last-child { border-bottom: none; }
+.prog-item .prog-name { flex: 0 0 38%; border: none; background: transparent; font-size: 13px; font-weight: 600; outline: none; font-family: inherit; }
+.prog-item .prog-name:focus { background: #FFFDF0; border-radius: 4px; padding: 2px 6px; }
+.prog-item .prog-svc { flex: 1; border: 1px solid transparent; background: transparent; font-size: 12px; color: #555; outline: none; font-family: inherit; padding: 3px 6px; border-radius: 4px; }
+.prog-item .prog-svc:focus { border-color: var(--yellow); background: #FFFDF0; }
+.prog-ai-result { background: #F0F4FF; border-left: 3px solid #5C6BC0; border-radius: 0 6px 6px 0; padding: 12px 14px; margin-top: 10px; font-size: 12px; line-height: 1.7; color: #333; white-space: pre-wrap; display: none; }
+
+/* ── Icon buttons ── */
+.ibtn { width: 26px; height: 26px; border-radius: 50%; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s; }
+.ibtn:hover { opacity: 0.75; }
+.ibtn-add { background: var(--yellow); color: var(--dark); }
+.ibtn-del { background: #FFEBEE; color: #C62828; }
+
+/* ── Unit type card ── */
+.unit-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.unit-img-area {
+  height: 150px;
+  background: #F0F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.unit-img-area img { width: 100%; height: 100%; object-fit: cover; }
+.unit-img-placeholder { text-align: center; color: #BBB; font-size: 12px; }
+.unit-img-placeholder svg { display: block; margin: 0 auto 6px; }
+.unit-body { padding: 14px; }
+
+/* ── Revenue ── */
+.rev-output-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+.rev-kpi { background: var(--dark); border-radius: 10px; padding: 18px; color: #fff; }
+.rev-kpi-label { font-size: 11px; color: #888; margin-bottom: 6px; }
+.rev-kpi-value { font-size: 22px; font-weight: 800; color: var(--yellow); }
+.rev-kpi-unit { font-size: 11px; color: #888; margin-top: 3px; }
+
+/* ── AI button ── */
+.ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.ai-btn:hover { opacity: 0.85; }
+.ai-badge { font-size: 10px; background: rgba(255,255,255,0.25); padding: 1px 6px; border-radius: 10px; }
+
+/* ── Map area ── */
+#kakao-map { width: 100%; height: 380px; background: #E8ECF0; display: none; border-radius: 10px; border: 1px solid var(--border); }
+.map-info-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 14px; }
+.map-info-card { background: var(--light); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.map-info-title { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+.map-info-title .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.map-info-item { display: flex; align-items: center; gap: 5px; padding: 3px 0; font-size: 12px; border-bottom: 1px solid #EAEAEA; }
+.map-info-item:last-child { border-bottom: none; }
+
+/* ── Lifecycle table ── */
+.lifecycle-wrap { overflow-x: auto; }
+.lifecycle-tbl { width: 100%; border-collapse: collapse; min-width: 700px; }
+.lifecycle-tbl th, .lifecycle-tbl td { border: 1px solid var(--border); padding: 0; }
+.lifecycle-tbl thead th { background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; padding: 10px 8px; text-align: center; }
+.lifecycle-tbl tbody td:first-child { background: var(--dark2); color: #fff; font-size: 12px; font-weight: 700; text-align: center; width: 120px; padding: 10px; }
+.lifecycle-tbl td textarea { width: 100%; min-height: 70px; border: none; background: transparent; resize: none; padding: 8px; font-size: 12px; font-family: inherit; outline: none; color: var(--text); line-height: 1.5; }
+.lifecycle-tbl td textarea:focus { background: var(--yellow-light); }
+
+/* ── CSV Upload ── */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.upload-area:hover, .upload-area.drag-over { border-color: var(--yellow); background: var(--yellow-light); }
+
+/* ── Chip ── */
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.chip-g { background: #E8F5E9; color: #2E7D32; }
+.chip-b { background: #E3F2FD; color: #1565C0; }
+.chip-o { background: #FFF3E0; color: #E65100; }
+
+/* ── Utilities ── */
+.flex { display: flex; }
+.gap-8 { gap: 8px; } .gap-12 { gap: 12px; }
+.items-center { align-items: center; } .justify-between { justify-content: space-between; }
+.mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; } .mt-20 { margin-top: 20px; }
+.mb-12 { margin-bottom: 12px; }
+.text-sm { font-size: 12px; color: var(--text-sub); }
+.fw7 { font-weight: 700; }
+.hint { font-size: 11px; color: #AAA; margin-top: 4px; }
+hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* ── Tab 4 Floor Panel ── */
+.floor-panel-wrap { display: grid; grid-template-columns: 210px 1fr; gap: 16px; margin-top: 4px; }
+.floor-list-panel { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+.floor-list-panel-hd { background: var(--dark); color: #fff; padding: 10px 14px; font-size: 11px; font-weight: 700; text-align: center; letter-spacing: 1px; }
+.floor-item { padding: 9px 12px; border-bottom: 1px solid #F0F0F0; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: background 0.12s; border-left: 3px solid transparent; }
+.floor-item:hover { background: #FFFDF0; }
+.floor-item.sel { background: var(--yellow-light); border-left-color: var(--yellow); }
+.floor-item-label { font-size: 13px; font-weight: 700; }
+.floor-item-badges { display: flex; flex-wrap: wrap; gap: 3px; }
+.fl-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #fff; }
+.fl-unit-badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 700; background: #EEE; color: #555; }
+.floor-detail-panel { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.floor-detail-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.floor-detail-sub { font-size: 12px; color: var(--text-sub); margin-bottom: 16px; }
+.floor-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.fn-list-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.fn-pill-list { display: flex; flex-direction: column; gap: 8px; }
+.fn-pill { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border: 1.5px solid var(--zc); background: #fff; color: var(--zc); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.15s; user-select: none; }
+.fn-pill:hover { filter: brightness(0.97); }
+.fn-pill.on { background: var(--zc); color: #fff; }
+.fn-pill-label { flex: 1; }
+.fn-pill-del { width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0,0,0,0.12); color: inherit; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background 0.15s; }
+.fn-pill.on .fn-pill-del { background: rgba(255,255,255,0.3); }
+.fn-pill.on .fn-pill-del:hover { background: rgba(255,255,255,0.5); }
+.fn-pill-del:hover { background: rgba(0,0,0,0.22); }
+.fn-pill-add { padding: 10px 14px; border: 1.5px dashed #BBB; background: #FAFAFA; color: #666; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.15s; }
+.fn-pill-add:hover { border-color: var(--yellow); color: #8A6A00; background: var(--yellow-light); }
+.unit-ctrl-section { }
+.unit-ctrl-hd { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.unit-ctrl-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #F5F5F5; }
+.unit-ctrl-row:last-child { border-bottom: none; }
+.unit-ctrl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.unit-ctrl-name { flex: 1; font-size: 13px; }
+.unit-counter { display: flex; align-items: center; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.unit-counter-btn { width: 28px; height: 28px; border: none; background: #F5F5F5; cursor: pointer; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: background 0.12s; }
+.unit-counter-btn:hover { background: var(--yellow); }
+.unit-counter-val { width: 36px; text-align: center; font-size: 13px; font-weight: 700; border: none; background: #fff; padding: 0; outline: none; font-family: inherit; }
+.unit-ca-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 12px; background: #F8F8F8; border-radius: 7px; }
+.unit-ca-row label { font-size: 12px; font-weight: 700; color: var(--text-sub); flex-shrink: 0; }
+.unit-ca-row input { flex: 1; border: 1px solid var(--border); border-radius: 5px; padding: 4px 8px; font-size: 13px; font-family: inherit; outline: none; text-align: right; }
+.unit-ca-row input:focus { border-color: var(--yellow); }
+.floor-memo-wrap { margin-top: 14px; }
+.floor-area-settings { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 12px 16px; background: var(--light); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px; }
+.floor-area-settings label { font-size: 11px; font-weight: 700; color: var(--text-sub); }
+.floor-area-settings input { width: 60px; border: 1px solid var(--border); border-radius: 5px; padding: 4px 8px; font-size: 13px; font-family: inherit; outline: none; }
+.floor-area-settings input:focus { border-color: var(--yellow); }
+/* ── Brand Concept Dark ── */
+.brand-section { background: var(--yellow) !important; color: var(--dark); }
+.brand-section .section-header { border-bottom-color: var(--dark); }
+.brand-section .section-title { color: var(--dark); }
+.brand-section .stag { background: var(--dark); color: var(--yellow); }
+.brand-section .flabel { color: #3A3A3A; font-weight: 700; }
+.brand-section .finput, .brand-section .ftextarea {
+  background: rgba(255,255,255,0.65);
+  border-color: rgba(26,26,26,0.25);
+  color: var(--dark);
+}
+.brand-section .finput::placeholder, .brand-section .ftextarea::placeholder { color: rgba(26,26,26,0.45); }
+.brand-section .finput:focus, .brand-section .ftextarea:focus { background: #fff; border-color: var(--dark); box-shadow: 0 0 0 3px rgba(26,26,26,0.12); }
+/* ── Lifecycle white cells ── */
+.lifecycle-tbl td textarea { background: #fff !important; }
+.lifecycle-tbl td textarea:focus { background: var(--yellow-light) !important; }
+/* ── Persona extra ── */
+#persona-grid { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 4px; }
+#persona-grid .persona-col { flex: 0 0 320px; }
+/* ── Prog memo ── */
+.prog-memo { border-top: 1px dashed var(--border); padding: 8px 16px 12px; }
+.prog-memo textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: inherit; resize: none; min-height: 52px; outline: none; color: var(--text); }
+.prog-memo textarea:focus { border-color: var(--yellow); }
+
+/* ── Lifecycle redesign (yellow + neutral grey) ── */
+.lifecycle-tbl thead th { background: #F7F7F7 !important; color: var(--text) !important; border-bottom: 2px solid var(--yellow); }
+.lifecycle-tbl tbody td:first-child { background: #FAFAFA !important; color: var(--text) !important; text-align: left !important; padding: 10px 12px !important; width: 140px !important; }
+.lc-persona { display: flex; align-items: center; gap: 10px; }
+.lc-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0; letter-spacing: -0.5px; }
+.lc-meta { display: flex; flex-direction: column; gap: 1px; }
+.lc-role { font-size: 12px; font-weight: 700; color: var(--text); }
+.lc-rank { font-size: 9px; color: var(--text-sub); font-weight: 600; letter-spacing: 0.5px; }
+.lc-rank-badge { display: inline-block; align-self: flex-start; margin-top: 3px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
+.lc-name { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
+
+/* ── Persona delete ── */
+.persona-hd .delete-btn { background: rgba(255,255,255,0.9); border: none; color: #C62828; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; font-size: 18px; font-weight: 700; line-height: 1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+.persona-hd .delete-btn:hover { background: #fff; color: #B71C1C; transform: scale(1.08); }
+
+/* ── Floor list drag ── */
+.floor-item { user-select: none; }
+.floor-item.dragging { opacity: 0.4; }
+.floor-item.drag-over-top { border-top: 2px solid var(--yellow); }
+.floor-item.drag-over-bottom { border-bottom: 2px solid var(--yellow); }
+.floor-drag-handle { color: #BBB; font-size: 12px; cursor: grab; padding-right: 4px; }
+.floor-drag-handle:active { cursor: grabbing; }
+.floor-item-top { display: flex; align-items: center; gap: 4px; }
+
+/* ── Floor label editable ── */
+.floor-label-edit { font-size: 22px; font-weight: 800; border: none; background: transparent; outline: none; border-bottom: 1px dashed var(--border); padding: 2px 4px; width: 100%; font-family: inherit; margin-bottom: 4px; }
+.floor-label-edit:focus { border-bottom-color: var(--yellow); background: var(--yellow-light); }
+
+/* ── Floor detail: unit types ── */
+.floor-unit-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: #FAFAFA; }
+.floor-unit-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.floor-unit-hd-l { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.floor-unit-hd-r { font-size: 13px; font-weight: 700; color: var(--text); }
+.type-unit-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #E5E5E5; }
+.type-unit-row:last-child { border-bottom: none; }
+.type-unit-dot { width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; }
+.type-unit-label { flex: 1; min-width: 0; }
+.type-unit-name { font-size: 13px; font-weight: 700; }
+.type-unit-sub { font-size: 11px; color: var(--text-sub); }
+.zone-area-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; background: #FAFAFA; }
+.zone-area-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #ECECEC; }
+.zone-area-row:last-child { border-bottom: none; }
+.zone-area-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.zone-area-name { flex: 1; font-size: 13px; font-weight: 600; }
+.zone-area-input { width: 110px; text-align: right; }
+.zone-area-unit { font-size: 11px; color: var(--text-sub); font-weight: 700; }
+.zone-area-auto { width: 110px; text-align: right; padding: 6px 10px; font-size: 13px; font-weight: 800; color: var(--dark); background: #F5F5F5; border: 1px dashed #CFCFCF; border-radius: 6px; }
+
+/* ── Seoul iframe ── */
+.seoul-iframe-wrap { margin-top: 12px; }
+.seoul-iframe-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.seoul-iframe-tab { padding: 7px 14px; border: 1px solid var(--border); background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.seoul-iframe-tab:hover { background: #FAFAFA; }
+.seoul-iframe-tab.active { background: var(--yellow); border-color: var(--yellow); color: var(--dark); }
+.seoul-iframe { width: 100%; height: 880px; border: 1px solid var(--border); border-radius: 10px; background: #FAFAFA; }
+.seoul-print-fallback { display: none; padding: 24px; border: 1px dashed var(--border); border-radius: 10px; text-align: center; }
+.seoul-print-fallback img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.seoul-print-fallback .pf-hint { font-size: 11px; color: #888; margin-top: 10px; }
+
+/* ── Print ── */
+@media print {
+  html, body { background: #fff; font-size: 10px; width: 100%; overflow-x: hidden; }
+  * { box-sizing: border-box; }
+  .header, .tab-nav, .no-print { display: none !important; }
+  .content { padding: 0; max-width: 100%; width: 100%; margin: 0; }
+  .tab-panel { display: block !important; page-break-after: always; width: 100%; max-width: 100%; overflow: hidden; }
+  .tab-panel:last-child { page-break-after: avoid; }
+  @page { size: A3 landscape; margin: 10mm; }
+  .section { box-shadow: none; break-inside: avoid; page-break-inside: avoid; max-width: 100%; overflow: hidden; }
+  .card, .persona-col, .unit-card, .prog-section, .tbl-wrap, .floor-unit-card, .zone-area-card, .rev-kpi, .floor-detail-panel { break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  /* Prevent horizontal overflow on wide grids/tables */
+  table { width: 100% !important; table-layout: fixed; }
+  table td, table th { word-break: break-word; overflow-wrap: anywhere; }
+  img, canvas, iframe { max-width: 100% !important; height: auto !important; }
+  #persona-grid { flex-wrap: wrap !important; overflow-x: hidden !important; }
+  #persona-grid .persona-col { flex: 1 1 30% !important; min-width: 0 !important; }
+  .floor-detail-grid { grid-template-columns: 1fr 1fr !important; }
+  /* Tab 6 — compact to fit one A3 landscape page */
+  #tab6 .section { padding: 14px; margin-bottom: 0; }
+  #tab6 .g3 { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+  #tab6 .unit-card { border-radius: 8px; }
+  #tab6 .unit-img-area { height: 80px !important; }
+  #tab6 .unit-img-placeholder { font-size: 9px; }
+  #tab6 .unit-img-placeholder svg { width: 20px; height: 20px; margin-bottom: 2px; }
+  #tab6 .unit-body { padding: 8px !important; font-size: 9px; }
+  #tab6 .unit-body .fgroup { margin-bottom: 4px; }
+  #tab6 .unit-body .flabel { font-size: 8px; margin-bottom: 1px; }
+  #tab6 .unit-body .finput, #tab6 .unit-body .fselect { padding: 3px 6px !important; font-size: 9px !important; }
+  #tab6 .unit-body .ftextarea { min-height: 32px !important; padding: 3px 6px !important; font-size: 9px !important; }
+  #tab6 .unit-card-hd { padding: 5px 8px !important; font-size: 10px; }
+  #tab6 .g2 { gap: 6px !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header no-print">
+  <div class="logo">HOMES</div>
+  <div class="pj-input-wrap">
+    <span class="pj-label">PROJECT</span>
+    <input class="pj-input" id="pj-title" type="text" placeholder="프로젝트명을 입력하세요" oninput="updateTitle(this.value)">
+  </div>
+  <div class="header-meta">
+    <input type="text" id="pj-location" placeholder="위치" style="width:140px">
+    <input type="text" id="pj-date" placeholder="기준일 (예: 2026.04)" style="width:130px">
+    <input type="text" id="pj-manager" placeholder="담당자" style="width:100px">
+  </div>
+  <div class="flex gap-8 items-center">
+    <span id="save-status" style="font-size:11px;color:#888;margin-right:4px">—</span>
+    <button class="btn btn-outline btn-sm" onclick="newProject()">+ 새 프로젝트</button>
+    <button class="btn btn-outline btn-sm" onclick="shareProjectUrl()">🔗 공유</button>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">인쇄 / PDF</button>
+  </div>
+</header>
+
+<!-- ═══ TAB NAV ═══ -->
+<nav class="tab-nav no-print">
+  <button class="tab-btn active" onclick="showTab('tab1',this)">01 입지 분석</button>
+  <button class="tab-btn" onclick="showTab('tab2',this)">02 타겟</button>
+  <button class="tab-btn" onclick="showTab('tab3',this)">03 브랜드 컨셉</button>
+  <button class="tab-btn" onclick="showTab('tab4',this)">04 층별 조닝</button>
+  <button class="tab-btn" onclick="showTab('tab5',this)">05 공용부 프로그램</button>
+  <button class="tab-btn" onclick="showTab('tab6',this)">06 전용부 타입</button>
+  <button class="tab-btn" onclick="showTab('tab7',this)">07 수익 시뮬레이션</button>
+</nav>
+
+<div class="content">
+
+<!-- ═══ TAB 1: 입지 분석 ═══ -->
+<div id="tab1" class="tab-panel active">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 1</span> 입지 분석 맵</div>
+      <button class="ai-btn no-print" onclick="alert('Phase 2에서 Claude API 연동 예정\n\n주소를 입력하면 인근 업무지구·대학·교통·인프라를 자동 조사합니다.')">
+        ✦ AI 자료조사 자동 기입 <span class="ai-badge">Phase 2</span>
+      </button>
+    </div>
+
+    <!-- 카카오맵 -->
+    <div id="kakao-map" style="display:block"></div>
+
+    <div class="fgroup mt-8 no-print">
+      <label class="flabel">프로젝트 주소 (지도 중심 설정)</label>
+      <div class="flex gap-8">
+        <input class="finput" id="map-address" type="text" placeholder="예: 서울시 강남구 테헤란로 123">
+        <button class="btn btn-outline" onclick="searchAddress()">검색</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입지 정보 수집 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">입지 정보 수집</div>
+      <div class="flex gap-8 no-print">
+        <a href="https://data.seoul.go.kr/bsp/wgs/theme/detail/1.do?tab=portal" target="_blank" class="btn btn-outline btn-sm">서울 데이터 포털 ↗</a>
+        <a href="https://map.kakao.com" target="_blank" class="btn btn-outline btn-sm">카카오맵 ↗</a>
+      </div>
+    </div>
+    <div class="map-info-grid">
+      <div class="map-info-card">
+        <div class="map-info-title"><span class="dot" style="background:#E53935"></span>유입 지역 순위 (출퇴근)</div>
+        <div id="pop-list">
+          <div class="map-info-item"><input class="finput-inline" placeholder="1순위: 지역명 / 규모" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><input class="finput-inline" placeholder="2순위: 지역명 / 규모" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+        </div>
+        <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('pop-list','항목 추가')">+</button>
+      </div>
+      <div class="map-info-card">
+        <div class="map-info-title"><span class="dot" style="background:#1565C0"></span>주변 업무지구·기업</div>
+        <div id="biz-list">
+          <div class="map-info-item"><input class="finput-inline" placeholder="기업명 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+        </div>
+        <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('biz-list','기업명 / 거리')">+</button>
+      </div>
+      <div class="map-info-card">
+        <div class="map-info-title"><span class="dot" style="background:#6A1B9A"></span>인근 대학·어학당</div>
+        <div id="univ-list">
+          <div class="map-info-item"><input class="finput-inline" placeholder="대학교명 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+        </div>
+        <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('univ-list','대학교명 / 거리')">+</button>
+      </div>
+      <div class="map-info-card">
+        <div class="map-info-title"><span class="dot" style="background:#2E7D32"></span>주변 인프라 (생활기반)</div>
+        <div id="infra-list">
+          <div class="map-info-item"><input class="finput-inline" placeholder="헬스장 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><input class="finput-inline" placeholder="편의점 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+        </div>
+        <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('infra-list','시설명 / 거리')">+</button>
+      </div>
+      <div class="map-info-card">
+        <div class="map-info-title"><span class="dot" style="background:#F57F17"></span>대중교통</div>
+        <div id="transit-list">
+          <div class="map-info-item"><input class="finput-inline" placeholder="지하철역 / 노선 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><input class="finput-inline" placeholder="버스정류장 / 노선" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+        </div>
+        <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('transit-list','교통수단 / 거리')">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 서울 생활이동 대시보드 (iframe) -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">생활이동 · 유입인구 대시보드 <span style="font-size:11px;font-weight:400;color:#888;margin-left:4px">서울 열린데이터광장 실시간</span></div>
+      <div class="flex gap-8 no-print seoul-iframe-controls">
+        <a href="https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do" id="seoul-open-new" target="_blank" class="btn btn-outline btn-sm">새 창에서 열기 ↗</a>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('seoul-capture-file').click()">PDF용 캡처 업로드</button>
+        <input type="file" id="seoul-capture-file" accept="image/*" style="display:none" onchange="handleSeoulCapture(this)">
+      </div>
+    </div>
+    <div class="seoul-iframe-wrap">
+      <div class="seoul-iframe-tabs no-print">
+        <button class="seoul-iframe-tab active" onclick="switchSeoulTab(this,'https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do')">서울 생활이동</button>
+        <button class="seoul-iframe-tab" onclick="switchSeoulTab(this,'https://data.seoul.go.kr/dataVisual/seoul/capitalRegionLivingMigration.do')">수도권 생활이동</button>
+      </div>
+      <iframe id="seoul-iframe" class="seoul-iframe no-print" src="https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do" loading="lazy"></iframe>
+      <!-- 프린트 전용 fallback (캡처 이미지 or URL) -->
+      <div class="seoul-print-fallback" id="seoul-print-fallback">
+        <img id="seoul-capture-img" style="display:none" alt="생활이동 캡처">
+        <div id="seoul-print-link">
+          <p style="font-size:13px;font-weight:700;margin-bottom:8px">생활이동 · 유입인구 데이터 (실시간 웹 대시보드)</p>
+          <p style="font-size:12px;color:#666;word-break:break-all;margin-bottom:6px" id="seoul-print-url">https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do</p>
+          <p class="pf-hint">PDF용 캡처 업로드 시 여기에 표시됩니다</p>
+        </div>
+      </div>
+      <p class="hint mt-8 no-print">iframe은 PDF 내보내기 시 포함되지 않습니다. 필요시 화면 캡처 후 "PDF용 캡처 업로드" 버튼을 이용하세요.</p>
+    </div>
+  </div>
+
+  <!-- 종합 의견 -->
+  <div class="section">
+    <div class="section-title mb-12">입지 분석 종합 의견</div>
+    <textarea class="ftextarea" style="min-height:100px" placeholder="입지 분석을 통해 도출한 종합 의견 및 타겟 실효성 검토 내용을 입력하세요"></textarea>
+  </div>
+</div>
+
+<!-- ═══ TAB 2: 타겟 ═══ -->
+<div id="tab2" class="tab-panel">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 2</span> 타겟 페르소나</div>
+      <div class="flex gap-8 no-print">
+        <button class="btn btn-outline btn-sm" onclick="addPersona()">+ 페르소나 추가</button>
+        <button class="ai-btn" onclick="alert('Phase 2에서 Claude API로\n입지 데이터 기반 페르소나 자동 추천 예정')">✦ AI 페르소나 추천 <span class="ai-badge">Phase 2</span></button>
+      </div>
+    </div>
+    <div id="persona-grid">
+      <!-- Core -->
+      <div class="persona-col" data-persona-id="p1">
+        <div class="persona-hd" style="background:#1A237E">
+          <span class="rank">CORE</span>
+          <input class="name-input" type="text" placeholder="페르소나 이름" oninput="syncLifecycle()">
+                  </div>
+        <button class="persona-delete no-print" onclick="removePersona(this)" title="이 페르소나 삭제">×</button>
+      <div class="persona-body">
+          <div class="g2">
+            <div class="fgroup"><label class="flabel">나이대</label><input class="finput" type="text" placeholder="예: 25~35세"></div>
+            <div class="fgroup"><label class="flabel">직업/신분</label><input class="finput persona-role" type="text" placeholder="예: 직장인" oninput="syncLifecycle()"></div>
+          </div>
+          <div class="fgroup"><label class="flabel">배경 (라이프스타일)</label><textarea class="ftextarea" placeholder="생활 패턴, 거주 배경 등"></textarea></div>
+          <div class="fgroup"><label class="flabel">페인포인트</label><textarea class="ftextarea" placeholder="현재 겪고 있는 불편함, 문제점"></textarea></div>
+          <div class="fgroup"><label class="flabel">니즈</label><textarea class="ftextarea" placeholder="원하는 것, 해결되길 바라는 것"></textarea></div>
+          <div class="fgroup"><label class="flabel">선호 타입 / 임대료 민감도</label><input class="finput" type="text" placeholder="예: 1인실, 가격 민감"></div>
+        </div>
+      </div>
+      <!-- Secondary -->
+      <div class="persona-col" data-persona-id="p2">
+        <div class="persona-hd" style="background:#1B5E20">
+          <span class="rank">SECONDARY</span>
+          <input class="name-input" type="text" placeholder="페르소나 이름" oninput="syncLifecycle()">
+                  </div>
+        <button class="persona-delete no-print" onclick="removePersona(this)" title="이 페르소나 삭제">×</button>
+      <div class="persona-body">
+          <div class="g2">
+            <div class="fgroup"><label class="flabel">나이대</label><input class="finput" type="text" placeholder="예: 20~28세"></div>
+            <div class="fgroup"><label class="flabel">직업/신분</label><input class="finput persona-role" type="text" placeholder="예: 대학생" oninput="syncLifecycle()"></div>
+          </div>
+          <div class="fgroup"><label class="flabel">배경 (라이프스타일)</label><textarea class="ftextarea" placeholder="생활 패턴, 거주 배경 등"></textarea></div>
+          <div class="fgroup"><label class="flabel">페인포인트</label><textarea class="ftextarea" placeholder="현재 겪고 있는 불편함, 문제점"></textarea></div>
+          <div class="fgroup"><label class="flabel">니즈</label><textarea class="ftextarea" placeholder="원하는 것, 해결되길 바라는 것"></textarea></div>
+          <div class="fgroup"><label class="flabel">선호 타입 / 임대료 민감도</label><input class="finput" type="text" placeholder="예: 도미토리, 가격 매우 민감"></div>
+        </div>
+      </div>
+      <!-- Third -->
+      <div class="persona-col" data-persona-id="p3">
+        <div class="persona-hd" style="background:#4A148C">
+          <span class="rank">THIRD</span>
+          <input class="name-input" type="text" placeholder="페르소나 이름" oninput="syncLifecycle()">
+                  </div>
+        <button class="persona-delete no-print" onclick="removePersona(this)" title="이 페르소나 삭제">×</button>
+      <div class="persona-body">
+          <div class="g2">
+            <div class="fgroup"><label class="flabel">나이대</label><input class="finput" type="text" placeholder="예: 30~45세"></div>
+            <div class="fgroup"><label class="flabel">직업/신분</label><input class="finput persona-role" type="text" placeholder="예: 외국인 주재원" oninput="syncLifecycle()"></div>
+          </div>
+          <div class="fgroup"><label class="flabel">배경 (라이프스타일)</label><textarea class="ftextarea" placeholder="생활 패턴, 거주 배경 등"></textarea></div>
+          <div class="fgroup"><label class="flabel">페인포인트</label><textarea class="ftextarea" placeholder="현재 겪고 있는 불편함, 문제점"></textarea></div>
+          <div class="fgroup"><label class="flabel">니즈</label><textarea class="ftextarea" placeholder="원하는 것, 해결되길 바라는 것"></textarea></div>
+          <div class="fgroup"><label class="flabel">선호 타입 / 임대료 민감도</label><input class="finput" type="text" placeholder="예: 스튜디오, 가격 덜 민감"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 타겟 리서치 인사이트 -->
+  <div class="section">
+    <div class="section-title mb-12">타겟 리서치 인사이트 <span style="font-size:11px;font-weight:400;color:#888">(인터뷰·설문·관찰 종합 정리)</span></div>
+    <div class="g2">
+      <div class="fgroup"><label class="flabel">핵심 인사이트</label><textarea class="ftextarea" style="min-height:110px" placeholder="리서치를 통해 발견한 주요 인사이트, 공통된 니즈·불편·욕구 등"></textarea></div>
+      <div class="fgroup"><label class="flabel">시사점 / 기획 반영 포인트</label><textarea class="ftextarea" style="min-height:110px" placeholder="이 인사이트가 기획·공간·서비스에 주는 함의, 구체적인 반영 방향"></textarea></div>
+    </div>
+    <div class="fgroup mt-12"><label class="flabel">리서치 방법 / 출처</label><input class="finput" type="text" placeholder="예: 심층 인터뷰 10명, 설문 응답 150건, 경쟁사 방문 5곳"></div>
+  </div>
+</div>
+
+<!-- ═══ TAB 3: 브랜드 컨셉 ═══ -->
+<div id="tab3" class="tab-panel">
+  <div class="section brand-section">
+    <div class="section-title mb-12"><span class="stag">TAB 3</span> 브랜드 컨셉보드</div>
+    <div class="g2">
+      <div>
+        <div class="fgroup"><label class="flabel">메인 슬로건</label><textarea class="ftextarea" style="min-height:56px" placeholder="브랜드 핵심 메시지 (예: Live Better, Together)"></textarea></div>
+        <div class="fgroup"><label class="flabel">서브 슬로건</label><textarea class="ftextarea" style="min-height:56px" placeholder="보조 슬로건"></textarea></div>
+        <div class="fgroup"><label class="flabel">무드 키워드 (쉼표로 구분)</label><textarea class="ftextarea" style="min-height:56px" placeholder="예: 모던, 따뜻한, 커뮤니티, 효율적"></textarea></div>
+      </div>
+      <div>
+        <div class="fgroup"><label class="flabel">포지셔닝</label><textarea class="ftextarea" placeholder="시장 내 위치, 경쟁사 대비 포지션"></textarea></div>
+        <div class="fgroup"><label class="flabel">차별화 방향성</label><textarea class="ftextarea" placeholder="타 시설 대비 차별화 요소, USP"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 라이프사이클 표 -->
+  <div class="section">
+    <div class="section-title mb-12">페르소나별 라이프사이클 <span style="font-size:11px; font-weight:400; color:#888">(열=시간대 고정 / 행=페르소나 고정)</span></div>
+    <div class="lifecycle-wrap">
+      <table class="lifecycle-tbl">
+        <thead>
+          <tr>
+            <th style="width:120px">페르소나 \ 시간대</th>
+            <th>05–08시<br><span style="font-weight:400;opacity:.7">기상·출근 준비</span></th>
+            <th>08–12시<br><span style="font-weight:400;opacity:.7">오전 활동</span></th>
+            <th>12–14시<br><span style="font-weight:400;opacity:.7">점심</span></th>
+            <th>14–18시<br><span style="font-weight:400;opacity:.7">오후 활동</span></th>
+            <th>18–21시<br><span style="font-weight:400;opacity:.7">저녁·귀가</span></th>
+            <th>21–24시<br><span style="font-weight:400;opacity:.7">야간·취침 준비</span></th>
+          </tr>
+        </thead>
+        <tbody id="lifecycle-tbody">
+          <tr data-persona-id="p1">
+            <td class="lc-persona-cell"></td>
+            <td><textarea placeholder="기상, 샤워, 조식"></textarea></td>
+            <td><textarea placeholder="출근, 업무 시작"></textarea></td>
+            <td><textarea placeholder="외부 또는 시설 내 점심"></textarea></td>
+            <td><textarea placeholder="업무 집중"></textarea></td>
+            <td><textarea placeholder="퇴근, 운동, 저녁"></textarea></td>
+            <td><textarea placeholder="휴식, 커뮤니티 공간 이용"></textarea></td>
+          </tr>
+          <tr data-persona-id="p2">
+            <td class="lc-persona-cell"></td>
+            <td><textarea placeholder="기상"></textarea></td>
+            <td><textarea placeholder="등교, 수업"></textarea></td>
+            <td><textarea placeholder="학식 또는 주변 식당"></textarea></td>
+            <td><textarea placeholder="수업, 도서관, 알바"></textarea></td>
+            <td><textarea placeholder="귀가, 스터디"></textarea></td>
+            <td><textarea placeholder="과제, 소셜 활동"></textarea></td>
+          </tr>
+          <tr data-persona-id="p3">
+            <td class="lc-persona-cell"></td>
+            <td><textarea placeholder="기상"></textarea></td>
+            <td><textarea placeholder="업무 또는 어학 수업"></textarea></td>
+            <td><textarea placeholder="점심"></textarea></td>
+            <td><textarea placeholder="업무, 관광, 쇼핑"></textarea></td>
+            <td><textarea placeholder="저녁, 소셜"></textarea></td>
+            <td><textarea placeholder="휴식, 커뮤니티"></textarea></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint mt-8">각 셀에 해당 시간대 주요 행동과 필요한 시설·서비스를 기재하세요</p>
+  </div>
+</div>
+
+<!-- ═══ TAB 4: 층별 조닝 ═══ -->
+<div id="tab4" class="tab-panel">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 4</span> 층별 조닝</div>
+      <div class="flex gap-8 no-print">
+        <button class="btn btn-outline btn-sm" onclick="addFloorItem()">+ 층 추가</button>
+        <button class="btn btn-sm" style="color:#C62828;border:1px solid #FFCDD2;background:transparent" onclick="removeSelectedFloor()">이 층 삭제</button>
+      </div>
+    </div>
+    <!-- Floor Panel: left list + right detail -->
+    <div class="floor-panel-wrap">
+      <div class="floor-list-panel">
+        <div class="floor-list-panel-hd">층 목록</div>
+        <div id="floor-list"></div>
+      </div>
+      <div id="floor-detail-panel" class="floor-detail-panel">
+        <p style="color:#CCC;text-align:center;margin-top:40px;font-size:13px">왼쪽에서 층을 선택하세요</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 조닝 요약 -->
+  <div class="section">
+    <div class="section-title mb-12">조닝 요약</div>
+    <div id="floor-summary-wrap">
+      <p class="text-sm" style="color:#BBB">층별 기능을 설정하면 자동으로 집계됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB 5: 공용부 프로그램 ═══ -->
+<div id="tab5" class="tab-panel">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 5</span> 공용부 프로그램</div>
+      <button class="ai-btn no-print" onclick="alert('Phase 2에서 탭1~4 데이터 기반\nClaude API 프로그램 자동 추천 예정')">✦ AI 프로그램 추천 <span class="ai-badge">Phase 2</span></button>
+    </div>
+    <div class="g2">
+      <div class="prog-section">
+        <div class="prog-hd" style="background:#E8F5E9">
+          <div class="prog-hd-left"><div class="prog-dot" style="background:var(--p1)"></div><span style="font-weight:800;font-size:13px;color:#2E7D32">P1</span><span style="font-size:12px;color:#555">필수 생활기반</span></div>
+          <button class="ibtn ibtn-add no-print" onclick="addProg('p1-list','P1 프로그램')">+</button>
+        </div>
+        <div class="prog-body" id="p1-list">
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p1);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="코인세탁실"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p1);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="택배함 / 보관함"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p1);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="공용 주방"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p1);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="자전거 보관소"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+        </div>
+        <div class="prog-memo"><textarea placeholder="P1 선정 이유 / 운영 방향 메모"></textarea></div>
+      </div>
+      <div class="prog-section">
+        <div class="prog-hd" style="background:#E3F2FD">
+          <div class="prog-hd-left"><div class="prog-dot" style="background:var(--p2)"></div><span style="font-weight:800;font-size:13px;color:#1565C0">P2</span><span style="font-size:12px;color:#555">핵심 브랜딩</span></div>
+          <button class="ibtn ibtn-add no-print" onclick="addProg('p2-list','P2 프로그램')">+</button>
+        </div>
+        <div class="prog-body" id="p2-list">
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p2);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="커뮤니티 라운지"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p2);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="피트니스센터"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p2);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="루프탑 테라스"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+        </div>
+        <div class="prog-memo"><textarea placeholder="P2 선정 이유 / 브랜딩 방향 메모"></textarea></div>
+      </div>
+      <div class="prog-section">
+        <div class="prog-hd" style="background:#FFF3E0">
+          <div class="prog-hd-left"><div class="prog-dot" style="background:var(--p3)"></div><span style="font-weight:800;font-size:13px;color:#E65100">P3</span><span style="font-size:12px;color:#555">소셜 &amp; 워크</span></div>
+          <button class="ibtn ibtn-add no-print" onclick="addProg('p3-list','P3 프로그램')">+</button>
+        </div>
+        <div class="prog-body" id="p3-list">
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p3);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="코워킹 스페이스"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p3);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="스터디룸 (개인 / 그룹)"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p3);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="파티룸 / 이벤트홀"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+        </div>
+        <div class="prog-memo"><textarea placeholder="P3 선정 이유 / 소셜·워크 방향 메모"></textarea></div>
+      </div>
+      <div class="prog-section">
+        <div class="prog-hd" style="background:#F3E5F5">
+          <div class="prog-hd-left"><div class="prog-dot" style="background:var(--p4)"></div><span style="font-weight:800;font-size:13px;color:#6A1B9A">P4</span><span style="font-size:12px;color:#555">프리미엄 특화</span></div>
+          <button class="ibtn ibtn-add no-print" onclick="addProg('p4-list','P4 프로그램')">+</button>
+        </div>
+        <div class="prog-body" id="p4-list">
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p4);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="골프 시뮬레이터"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p4);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="스파 / 사우나"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+          <div class="prog-item"><div style="width:6px;height:6px;border-radius:50%;background:var(--p4);flex-shrink:0"></div><input class="prog-name" type="text" placeholder="콘시어지 서비스"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button></div>
+        </div>
+        <div class="prog-memo"><textarea placeholder="P4 선정 이유 / 프리미엄 특화 메모"></textarea></div>
+      </div>
+    </div>
+    <div class="fgroup mt-16">
+      <label class="flabel">공용부 기획 메모</label>
+      <textarea class="ftextarea" placeholder="프로그램 선정 이유, 운영 방향, 특이사항 등"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB 6: 전용부 타입 ═══ -->
+<div id="tab6" class="tab-panel">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 6</span> 전용부 타입</div>
+      <button class="btn btn-primary btn-sm no-print" onclick="addUnitCard()">+ 타입 추가</button>
+    </div>
+    <div class="g3" id="unit-cards-grid"></div>
+  </div>
+</div>
+
+<!-- ═══ TAB 7: 수익 시뮬레이션 ═══ -->
+<div id="tab7" class="tab-panel">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 7</span> 수익 시뮬레이션</div>
+      <button class="btn btn-primary btn-sm no-print" onclick="calcRevenue()">계산 실행</button>
+    </div>
+
+    <!-- 타입별 임대료 -->
+    <div class="mb-12">
+      <div class="flex items-center justify-between mb-12">
+        <label class="flabel" style="margin:0">타입별 임대료 및 실수</label>
+        <button class="btn btn-outline btn-sm no-print" onclick="addRevType()">+ 타입 추가</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>타입명</th><th>월 임대료 (만원)</th><th>총 실수</th>
+            <th>목표 재실률 (%)</th><th>월 기대수익 (만원)</th>
+            <th class="no-print">삭제</th>
+          </tr></thead>
+          <tbody id="rev-type-tbody">
+            <tr><td><input class="finput-inline" value="타입 A" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="85" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="50" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="90" oninput="calcRevenue()"></td><td class="rev-row-income" style="font-weight:700;color:#1A237E">0</td><td class="no-print"><button class="ibtn ibtn-del" onclick="removeRevType(this)">×</button></td></tr>
+            <tr><td><input class="finput-inline" value="타입 B" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="110" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="30" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="90" oninput="calcRevenue()"></td><td class="rev-row-income" style="font-weight:700;color:#1A237E">0</td><td class="no-print"><button class="ibtn ibtn-del" onclick="removeRevType(this)">×</button></td></tr>
+            <tr><td><input class="finput-inline" value="타입 C" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="140" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="20" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="85" oninput="calcRevenue()"></td><td class="rev-row-income" style="font-weight:700;color:#1A237E">0</td><td class="no-print"><button class="ibtn ibtn-del" onclick="removeRevType(this)">×</button></td></tr>
+          </tbody>
+          <tfoot><tr>
+            <td colspan="2">전체 합계</td>
+            <td id="rev-total-units" style="font-weight:700">0 실</td>
+            <td></td>
+            <td id="rev-total-monthly" style="font-weight:800;color:#1A237E">0 만원</td>
+            <td class="no-print"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- 운영비 + 투자 + OCC -->
+    <div class="g3">
+      <div class="card">
+        <div class="fw7 mb-12" style="font-size:13px">운영비 (OPEX) 월 기준</div>
+        <div class="fgroup"><label class="flabel">인건비 (만원)</label><input class="finput" type="number" id="opex-labor" value="500" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">유지관리비 (만원)</label><input class="finput" type="number" id="opex-maint" value="300" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">관리비·공과금 (만원)</label><input class="finput" type="number" id="opex-util" value="200" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">기타 운영비 (만원)</label><input class="finput" type="number" id="opex-etc" value="100" oninput="calcRevenue()"></div>
+        <hr class="divider">
+        <div class="flex items-center justify-between"><span class="text-sm">월 OPEX 합계</span><span id="opex-total" class="fw7" style="color:#C62828">0 만원</span></div>
+      </div>
+      <div class="card">
+        <div class="fw7 mb-12" style="font-size:13px">투자 및 IRR 설정</div>
+        <div class="fgroup"><label class="flabel">총 투자비 (억원)</label><input class="finput" type="number" id="irr-invest" value="100" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">보유 기간 (년)</label><input class="finput" type="number" id="irr-period" value="10" min="1" max="30" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">NOI 성장률/년 (%)</label><input class="finput" type="number" id="irr-growth" value="2" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">잔존가치 (억원, 매각 기준)</label><input class="finput" type="number" id="irr-exit" value="120" oninput="calcRevenue()"></div>
+        <hr class="divider">
+        <div class="flex items-center justify-between"><span class="text-sm">월 자본비용 (회수 배분)</span><span id="capex-monthly" class="fw7" style="color:#C62828">0 만원</span></div>
+        <div class="text-sm" style="color:#888;font-size:11px;margin-top:4px">(총 투자비 − 잔존가치) ÷ (보유기간 × 12). 손익분기 계산에 포함됩니다.</div>
+      </div>
+      <div class="card">
+        <div class="fw7 mb-12" style="font-size:13px">OCC 시나리오</div>
+        <div class="fgroup"><label class="flabel">낙관적 OCC (%)</label><input class="finput" type="number" id="occ-opt" value="95" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">기본 OCC (%)</label><input class="finput" type="number" id="occ-base" value="85" oninput="calcRevenue()"></div>
+        <div class="fgroup"><label class="flabel">보수적 OCC (%)</label><input class="finput" type="number" id="occ-cons" value="75" oninput="calcRevenue()"></div>
+        <hr class="divider">
+        <div class="text-sm">손익분기 재실률</div>
+        <div id="breakeven-occ" class="fw7 mt-8" style="font-size:20px;color:#E65100">— %</div>
+      </div>
+    </div>
+
+    <!-- KPI 출력 -->
+    <div class="rev-output-grid">
+      <div class="rev-kpi"><div class="rev-kpi-label">월 임대수익 (기본 OCC)</div><div class="rev-kpi-value" id="kpi-monthly">0</div><div class="rev-kpi-unit">만원 / 월</div></div>
+      <div class="rev-kpi"><div class="rev-kpi-label">연 NOI (순영업이익)</div><div class="rev-kpi-value" id="kpi-noi">0</div><div class="rev-kpi-unit">만원 / 년</div></div>
+      <div class="rev-kpi"><div class="rev-kpi-label">손익분기 공실률</div><div class="rev-kpi-value" id="kpi-breakeven-vac">0</div><div class="rev-kpi-unit">% (이 공실률까지 NOI ≥ 0)</div></div>
+      <div class="rev-kpi"><div class="rev-kpi-label">추정 IRR</div><div class="rev-kpi-value" id="kpi-irr">—</div><div class="rev-kpi-unit">% (보유기간 기준)</div></div>
+    </div>
+
+    <!-- 시나리오 비교 표 -->
+    <div class="mt-20">
+      <div class="section-title mb-12">OCC 시나리오별 비교</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>시나리오</th><th>OCC</th><th>월 임대수익</th><th>연 임대수익</th><th>연 NOI</th><th>NOI 마진</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip chip-g">낙관적</span></td><td id="s-occ-opt">95%</td><td id="s-monthly-opt">—</td><td id="s-annual-opt">—</td><td id="s-noi-opt">—</td><td id="s-margin-opt">—</td></tr>
+            <tr><td><span class="chip chip-b">기본</span></td><td id="s-occ-base">85%</td><td id="s-monthly-base">—</td><td id="s-annual-base">—</td><td id="s-noi-base">—</td><td id="s-margin-base">—</td></tr>
+            <tr><td><span class="chip chip-o">보수적</span></td><td id="s-occ-cons">75%</td><td id="s-monthly-cons">—</td><td id="s-annual-cons">—</td><td id="s-noi-cons">—</td><td id="s-margin-cons">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 차트 -->
+    <div class="mt-20">
+      <div class="card"><canvas id="rev-chart" height="140"></canvas></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ═══ JAVASCRIPT ═══ -->
+<script>
+// ── Tab ──
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+function updateTitle(v) {
+  document.title = v ? v + ' | HOMES 기획보드' : 'HOMES 기획보드';
+}
+
+// ── List helpers ──
+function addItem(listId, placeholder) {
+  const list = document.getElementById(listId);
+  const item = document.createElement('div');
+  item.className = 'map-info-item';
+  item.innerHTML = `<input class="finput-inline" placeholder="${placeholder}" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
+  list.appendChild(item);
+}
+function removeItem(btn) { btn.closest('.map-info-item').remove(); }
+
+function addProg(listId, placeholder) {
+  const colors = { 'p1-list':'var(--p1)','p2-list':'var(--p2)','p3-list':'var(--p3)','p4-list':'var(--p4)' };
+  const c = colors[listId] || '#888';
+  const item = document.createElement('div');
+  item.className = 'prog-item';
+  item.innerHTML = `<div style="width:6px;height:6px;border-radius:50%;background:${c};flex-shrink:0"></div><input class="prog-name" type="text" placeholder="${placeholder}"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button>`;
+  document.getElementById(listId).appendChild(item);
+}
+function removeProg(btn) { btn.closest('.prog-item').remove(); }
+
+// ── Kakao Map (페이지 로드 시 자동 초기화) ──
+function initKakaoMap() {
+  if (typeof kakao === 'undefined' || !kakao.maps) return;
+  kakao.maps.load(function() {
+    const el = document.getElementById('kakao-map');
+    if (!el) return;
+    const map = new kakao.maps.Map(el, { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 5 });
+    window._map = map;
+    window._geo = new kakao.maps.services.Geocoder();
+  });
+}
+function searchAddress() {
+  const addr = document.getElementById('map-address').value.trim();
+  if (!addr || !window._geo) { alert('먼저 카카오맵을 로드하세요'); return; }
+  window._geo.addressSearch(addr, function(result, status) {
+    if (status === kakao.maps.services.Status.OK) {
+      const pos = new kakao.maps.LatLng(result[0].y, result[0].x);
+      window._map.setCenter(pos);
+      new kakao.maps.Marker({ map: window._map, position: pos });
+    } else { alert('주소를 찾을 수 없습니다'); }
+  });
+}
+
+// ── Seoul iframe ──
+function switchSeoulTab(btn, url) {
+  document.querySelectorAll('.seoul-iframe-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('seoul-iframe').src = url;
+  const open = document.getElementById('seoul-open-new'); if (open) open.href = url;
+  const link = document.getElementById('seoul-print-link'); if (link) link.textContent = url;
+}
+function handleSeoulCapture(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('seoul-capture-img');
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── Floor Panel Data Model ──
+let ZONE = {
+  parking:     { name:'주차장',   color:'#78909C' },
+  lobby:       { name:'로비',     color:'#5C6BC0' },
+  common:      { name:'공용시설', color:'#26A69A' },
+  residential: { name:'주거시설', color:'#4CAF50' },
+  terrace:     { name:'테라스',   color:'#FFA726' },
+  rooftop:     { name:'루프탑',   color:'#42A5F5' },
+};
+const ZONE_RESERVED = new Set(['residential']); // 타입별 배분 로직에서 사용되므로 삭제 불가
+const ZONE_COLOR_PALETTE = ['#78909C','#5C6BC0','#26A69A','#4CAF50','#FFA726','#42A5F5','#EF5350','#AB47BC','#8D6E63','#FFCA28','#66BB6A','#EC407A'];
+let zoneEditMode = false;
+let floorData = [
+  { id:1, label:'RF',     fns:['rooftop'],      units:{}, areas:{}, memo:'' },
+  { id:2, label:'3F~10F', fns:['residential'],  units:{}, areas:{}, memo:'' },
+  { id:3, label:'2F',     fns:['common'],       units:{}, areas:{}, memo:'' },
+  { id:4, label:'1F',     fns:['lobby'],        units:{}, areas:{}, memo:'' },
+  { id:5, label:'B1',     fns:['parking'],      units:{}, areas:{}, memo:'' },
+];
+let selFloorId = 1, nextFloorId = 6;
+let dragFloorId = null;
+
+function floorUnitTotal(fl) {
+  return Object.values(fl.units||{}).reduce((s,v)=>s+(parseInt(v)||0),0);
+}
+
+function computeResArea(fl) {
+  return unitTypes.reduce((s,t) => {
+    const cnt = parseInt((fl.units||{})[t.id])||0;
+    const area = parseFloat(t.area)||0;
+    return s + cnt * area;
+  }, 0);
+}
+
+function renderFloorList() {
+  document.getElementById('floor-list').innerHTML = floorData.map(fl => {
+    const total = floorUnitTotal(fl);
+    return `
+    <div class="floor-item ${fl.id===selFloorId?'sel':''}" draggable="true"
+         ondragstart="onFloorDragStart(event,${fl.id})"
+         ondragover="onFloorDragOver(event,${fl.id})"
+         ondragleave="onFloorDragLeave(event)"
+         ondrop="onFloorDrop(event,${fl.id})"
+         ondragend="onFloorDragEnd(event)"
+         onclick="selectFloor(${fl.id})">
+      <div class="floor-item-top">
+        <span class="floor-drag-handle" title="드래그해서 순서 변경">⋮</span>
+        <div class="floor-item-label">${fl.label}</div>
+      </div>
+      <div class="floor-item-badges">
+        ${fl.fns.map(fn=>`<span class="fl-badge" style="background:${ZONE[fn].color}">${ZONE[fn].name}</span>`).join('')}
+        ${fl.fns.includes('residential')&&total?`<span class="fl-unit-badge">${total}실</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function onFloorDragStart(e, id) {
+  dragFloorId = id; e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+function onFloorDragOver(e, id) {
+  e.preventDefault();
+  if (dragFloorId === id) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  document.querySelectorAll('.floor-item').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom'));
+  e.currentTarget.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+}
+function onFloorDragLeave(e) { e.currentTarget.classList.remove('drag-over-top','drag-over-bottom'); }
+function onFloorDrop(e, id) {
+  e.preventDefault();
+  if (dragFloorId === null || dragFloorId === id) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  const fromIdx = floorData.findIndex(f=>f.id===dragFloorId);
+  const moved = floorData.splice(fromIdx,1)[0];
+  let toIdx = floorData.findIndex(f=>f.id===id);
+  if (!before) toIdx += 1;
+  floorData.splice(toIdx,0,moved);
+  renderFloorList(); renderFloorSummary();
+}
+function onFloorDragEnd(e) {
+  dragFloorId = null;
+  document.querySelectorAll('.floor-item').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom','dragging'));
+}
+
+function selectFloor(id) {
+  selFloorId = id;
+  renderFloorList();
+  renderFloorDetail();
+}
+
+function renderFloorDetail() {
+  const fl = floorData.find(f=>f.id===selFloorId);
+  if (!fl) {
+    document.getElementById('floor-detail-panel').innerHTML = '<p style="color:#CCC;text-align:center;margin-top:40px;font-size:13px">층을 추가하세요</p>';
+    return;
+  }
+  const hasRes = fl.fns.includes('residential');
+  const typeRows = unitTypes.length === 0
+    ? `<p class="text-sm" style="color:#BBB;padding:10px 0">전용부 탭에서 타입을 먼저 등록하세요</p>`
+    : unitTypes.map(t => `
+        <div class="type-unit-row">
+          <div class="type-unit-dot" style="background:${t.color}">${t.letter}</div>
+          <div style="flex:1"><div class="fw7 text-sm">${escapeHtml(t.name)||('타입 '+t.letter)}</div></div>
+          <div class="unit-counter">
+            <button class="unit-counter-btn" onclick="updateTypeUnit(${fl.id},'${t.id}',-1)">−</button>
+            <input class="unit-counter-val" type="number" value="${fl.units[t.id]||0}" min="0" onchange="setTypeUnit(${fl.id},'${t.id}',this.value)">
+            <button class="unit-counter-btn" onclick="updateTypeUnit(${fl.id},'${t.id}',1)">+</button>
+          </div>
+        </div>`).join('');
+
+  const zoneItems = Object.entries(ZONE).map(([key,z])=>{
+    const selected = fl.fns.includes(key);
+    const reserved = ZONE_RESERVED.has(key);
+    return `
+      <div class="fn-pill ${selected?'on':''}" style="--zc:${z.color}" onclick="toggleFloorFn(${fl.id},'${key}')">
+        <span class="fn-pill-label">${escapeHtml(z.name)}</span>
+        ${zoneEditMode && !reserved ? `<button class="fn-pill-del" onclick="event.stopPropagation(); removeZone('${key}')" title="기능 삭제">×</button>` : ''}
+      </div>`;
+  }).join('');
+
+  document.getElementById('floor-detail-panel').innerHTML = `
+    <div class="floor-detail-title">
+      <input class="floor-label-edit" type="text" value="${escapeHtml(fl.label)}" onchange="setFloorLabel(${fl.id},this.value)">
+    </div>
+    <div class="floor-detail-grid">
+      <div>
+        <div class="fn-list-hd">
+          <span class="unit-ctrl-hd" style="margin:0">기능 선택 (복수 가능)</span>
+          <button class="btn btn-sm no-print ${zoneEditMode?'btn-primary':'btn-outline'}" onclick="toggleZoneEditMode()" style="padding:4px 10px;font-size:11px">${zoneEditMode?'완료':'편집'}</button>
+        </div>
+        <div class="fn-pill-list">
+          ${zoneItems}
+          ${zoneEditMode ? `<button class="fn-pill-add no-print" onclick="addZonePrompt()">+ 기능 추가</button>` : ''}
+        </div>
+      </div>
+      <div class="unit-ctrl-section">
+        ${hasRes?`
+          <div class="floor-unit-card">
+            <div class="floor-unit-hd">주거시설 <span style="color:#888;font-weight:500">(총 ${floorUnitTotal(fl)}실)</span></div>
+            ${typeRows}
+            <div class="zone-area-row" style="margin-top:10px;padding-top:10px;border-top:1px solid #E5E5E5;border-bottom:none">
+              <span class="zone-area-dot" style="background:${ZONE.residential.color}"></span>
+              <span class="zone-area-name">주거시설 총 면적 <span style="color:#888;font-size:11px;font-weight:500">(자동: Σ 타입 면적 × 실수)</span></span>
+              <span class="zone-area-auto">${computeResArea(fl).toFixed(1)}</span>
+              <span class="zone-area-unit">㎡</span>
+            </div>
+          </div>`:''}
+
+        ${(() => {
+          const nonRes = fl.fns.filter(k => k !== 'residential');
+          if (!nonRes.length) return '';
+          return `<div class="zone-area-card mt-12">
+            <div class="unit-ctrl-hd" style="margin-bottom:8px">기능별 면적 (㎡)</div>
+            ${nonRes.map(key=>{
+              const z = ZONE[key]; if (!z) return '';
+              return `<div class="zone-area-row">
+                <span class="zone-area-dot" style="background:${z.color}"></span>
+                <span class="zone-area-name">${escapeHtml(z.name)}</span>
+                <input class="finput zone-area-input" type="number" value="${(fl.areas&&fl.areas[key])||''}" placeholder="0" onchange="setFloorArea(${fl.id},'${key}',this.value)">
+                <span class="zone-area-unit">㎡</span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        })()}
+        <div class="floor-memo-wrap mt-12">
+          <label class="flabel">공간 메모</label>
+          <textarea class="ftextarea" style="min-height:56px" placeholder="용도·특이사항" onchange="setFloorMemo(${fl.id},this.value)">${escapeHtml(fl.memo||'')}</textarea>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleZoneEditMode() { zoneEditMode = !zoneEditMode; renderFloorDetail(); }
+
+function addZonePrompt() {
+  const name = prompt('새 기능 이름 (예: 옥외정원, 상가, 기계실)');
+  if (!name) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const existing = Object.values(ZONE).map(z=>z.name);
+  if (existing.includes(trimmed)) { alert('같은 이름의 기능이 이미 존재합니다'); return; }
+  const used = new Set(Object.values(ZONE).map(z=>z.color));
+  const color = ZONE_COLOR_PALETTE.find(c=>!used.has(c)) || ZONE_COLOR_PALETTE[Object.keys(ZONE).length % ZONE_COLOR_PALETTE.length];
+  const key = 'z_' + Date.now();
+  ZONE[key] = { name: trimmed, color };
+  renderFloorDetail();
+}
+
+function removeZone(key) {
+  if (ZONE_RESERVED.has(key)) { alert('이 기능은 삭제할 수 없습니다'); return; }
+  if (!ZONE[key]) return;
+  if (!confirm(`'${ZONE[key].name}' 기능을 삭제할까요? 모든 층에서 해제됩니다.`)) return;
+  delete ZONE[key];
+  floorData.forEach(fl => {
+    const i = fl.fns.indexOf(key);
+    if (i >= 0) fl.fns.splice(i, 1);
+  });
+  renderFloorList(); renderFloorDetail(); renderFloorSummary();
+}
+
+function removeSelectedFloor() {
+  if (selFloorId == null) { alert('삭제할 층이 선택되지 않았습니다'); return; }
+  removeFloorItem(selFloorId);
+}
+
+function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function toggleFloorFn(id, fnKey) {
+  const fl = floorData.find(f=>f.id===id); if (!fl) return;
+  const i = fl.fns.indexOf(fnKey);
+  if (i>=0) { fl.fns.splice(i,1); if (fnKey==='residential') fl.units = {}; }
+  else fl.fns.push(fnKey);
+  renderFloorList(); renderFloorDetail(); renderFloorSummary();
+}
+function updateTypeUnit(floorId, typeId, delta) {
+  const fl = floorData.find(f=>f.id===floorId); if (!fl) return;
+  fl.units[typeId] = Math.max(0,(fl.units[typeId]||0)+delta);
+  renderFloorList(); renderFloorDetail(); renderFloorSummary();
+}
+function setTypeUnit(floorId, typeId, val) {
+  const fl = floorData.find(f=>f.id===floorId); if (!fl) return;
+  fl.units[typeId] = Math.max(0,parseInt(val)||0);
+  renderFloorList(); renderFloorDetail(); renderFloorSummary();
+}
+function setFloorArea(id, zoneKey, val) {
+  const fl = floorData.find(f=>f.id===id); if (!fl) return;
+  if (!fl.areas) fl.areas = {};
+  fl.areas[zoneKey] = parseFloat(val)||0;
+  renderFloorSummary();
+}
+function setFloorMemo(id, val) {
+  const fl = floorData.find(f=>f.id===id); if (fl) fl.memo = val;
+}
+function setFloorLabel(id, val) {
+  const fl = floorData.find(f=>f.id===id); if (!fl) return;
+  fl.label = val || '신규 층'; renderFloorList();
+}
+function addFloorItem() {
+  floorData.unshift({ id:nextFloorId++, label:'신규 층', fns:[], units:{}, areas:{}, memo:'' });
+  selFloorId = floorData[0].id;
+  renderFloorList(); renderFloorDetail(); renderFloorSummary();
+}
+function removeFloorItem(id) {
+  if (!confirm('이 층을 삭제하시겠습니까?')) return;
+  floorData.splice(floorData.findIndex(f=>f.id===id),1);
+  if (floorData.length>0) { selFloorId=floorData[0].id; renderFloorList(); renderFloorDetail(); }
+  else { document.getElementById('floor-list').innerHTML=''; renderFloorDetail(); }
+  renderFloorSummary();
+}
+function renderFloorSummary() {
+  const typeTotals = {};
+  let totalResArea = 0, totalComArea = 0, totalUnits = 0;
+
+  const floorRows = floorData.map(fl => {
+    const fnBadges = fl.fns.map(k => ZONE[k] ? `<span class="zbadge" style="background:${ZONE[k].color}">${ZONE[k].name}</span>` : '').join(' ');
+    const typeCells = unitTypes.map(t => {
+      const cnt = parseInt((fl.units||{})[t.id])||0;
+      typeTotals[t.id] = (typeTotals[t.id]||0) + cnt;
+      totalUnits += cnt;
+      return `<td style="text-align:center">${cnt||''}</td>`;
+    }).join('');
+    const resArea = computeResArea(fl);
+    const comArea = Object.entries(fl.areas||{}).reduce((s,[k,v])=> k==='residential' ? s : s + (parseFloat(v)||0), 0);
+    totalResArea += resArea;
+    totalComArea += comArea;
+    return `<tr>
+      <td style="font-weight:700">${escapeHtml(fl.label)}</td>
+      <td>${fnBadges||'<span style="color:#CCC">—</span>'}</td>
+      ${typeCells}
+      <td style="text-align:right">${resArea? resArea.toFixed(1):'—'}</td>
+      <td style="text-align:right">${comArea? comArea.toFixed(1):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const typeHeaders = unitTypes.map(t =>
+    `<th style="text-align:center"><span class="zbadge" style="background:${t.color}">${t.letter}</span></th>`
+  ).join('');
+  const typeFootCells = unitTypes.map(t =>
+    `<td style="text-align:center;font-weight:800">${typeTotals[t.id]||0}</td>`
+  ).join('');
+
+  document.getElementById('floor-summary-wrap').innerHTML = `
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+        <th>층</th>
+        <th>기능</th>
+        ${typeHeaders || '<th style="text-align:center;color:#BBB">타입 미등록</th>'}
+        <th style="text-align:right">주거면적 (㎡)</th>
+        <th style="text-align:right">공용면적 (㎡)</th>
+      </tr></thead>
+      <tbody>${floorRows||`<tr><td colspan="${5+Math.max(unitTypes.length,1)}" style="text-align:center;color:#BBB;padding:16px">층을 추가해주세요</td></tr>`}</tbody>
+      <tfoot>
+        <tr style="background:#FFF9C4">
+          <td colspan="2" style="font-weight:800">합계</td>
+          ${typeFootCells || '<td></td>'}
+          <td style="text-align:right;font-weight:800">${totalResArea.toFixed(1)}</td>
+          <td style="text-align:right;font-weight:800">${totalComArea.toFixed(1)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="color:#555">환산</td>
+          ${unitTypes.length ? `<td colspan="${unitTypes.length}" style="text-align:center;color:#555">전체 ${totalUnits} 실</td>` : '<td></td>'}
+          <td style="text-align:right;color:#555">${(totalResArea/3.30579).toFixed(1)} 평</td>
+          <td style="text-align:right;color:#555">${(totalComArea/3.30579).toFixed(1)} 평</td>
+        </tr>
+      </tfoot>
+    </table></div>`;
+}
+
+// ── Persona Add ──
+const personaColors = ['#1A237E','#1B5E20','#4A148C','#B71C1C','#E65100','#006064','#37474F','#AD1457'];
+const personaRanks  = ['CORE','SECONDARY','THIRD','4TH','5TH','6TH','7TH','8TH'];
+
+function personaRankOrder(rank) {
+  const i = personaRanks.indexOf(rank);
+  return i === -1 ? 999 : i;
+}
+
+function addPersona() {
+  const grid = document.getElementById('persona-grid');
+  const tbody = document.getElementById('lifecycle-tbody');
+
+  // 1) 현재 카드에 존재하는 랭크 수집 → 비어있는 첫 랭크 찾기
+  const existingRanks = [...grid.querySelectorAll('.persona-col .rank')].map(el => el.textContent.trim());
+  const rankIdx = personaRanks.findIndex(r => !existingRanks.includes(r));
+  if (rankIdx === -1) { alert('최대 페르소나 수(8)에 도달했습니다'); return; }
+  const rank  = personaRanks[rankIdx];
+  const color = personaColors[rankIdx];
+  const pid   = 'p_' + Date.now() + '_' + rankIdx;
+
+  // 2) 카드 생성
+  const col = document.createElement('div');
+  col.className = 'persona-col';
+  col.setAttribute('data-persona-id', pid);
+  col.innerHTML = `
+    <div class="persona-hd" style="background:${color}">
+      <span class="rank">${rank}</span>
+      <input class="name-input" type="text" placeholder="페르소나 이름" oninput="syncLifecycle()">
+    </div>
+    <button class="persona-delete no-print" onclick="removePersona(this)" title="이 페르소나 삭제">×</button>
+    <div class="persona-body">
+      <div class="g2">
+        <div class="fgroup"><label class="flabel">나이대</label><input class="finput" type="text" placeholder="예: 25~35세"></div>
+        <div class="fgroup"><label class="flabel">직업/신분</label><input class="finput persona-role" type="text" placeholder="직업" oninput="syncLifecycle()"></div>
+      </div>
+      <div class="fgroup"><label class="flabel">배경 (라이프스타일)</label><textarea class="ftextarea" placeholder="생활 패턴, 거주 배경 등"></textarea></div>
+      <div class="fgroup"><label class="flabel">페인포인트</label><textarea class="ftextarea" placeholder="현재 겪고 있는 불편함"></textarea></div>
+      <div class="fgroup"><label class="flabel">니즈</label><textarea class="ftextarea" placeholder="원하는 것"></textarea></div>
+      <div class="fgroup"><label class="flabel">선호 타입 / 임대료 민감도</label><input class="finput" type="text" placeholder="예: 1인실, 가격 민감"></div>
+    </div>`;
+
+  // 3) 랭크 순서에 맞는 위치에 삽입
+  const anchor = [...grid.querySelectorAll('.persona-col')].find(c => {
+    const r = c.querySelector('.rank')?.textContent.trim();
+    return personaRankOrder(r) > rankIdx;
+  });
+  if (anchor) grid.insertBefore(col, anchor); else grid.appendChild(col);
+
+  // 4) 라이프사이클 행도 같은 순서로 삽입
+  if (tbody) {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-persona-id', pid);
+    tr.innerHTML = `
+      <td class="lc-persona-cell"></td>
+      <td><textarea placeholder=""></textarea></td>
+      <td><textarea placeholder=""></textarea></td>
+      <td><textarea placeholder=""></textarea></td>
+      <td><textarea placeholder=""></textarea></td>
+      <td><textarea placeholder=""></textarea></td>
+      <td><textarea placeholder=""></textarea></td>`;
+    const trAnchor = [...tbody.querySelectorAll('tr')].find(existingTr => {
+      const existingPid = existingTr.getAttribute('data-persona-id');
+      const existingCol = grid.querySelector(`.persona-col[data-persona-id="${existingPid}"]`);
+      if (!existingCol) return false;
+      const r = existingCol.querySelector('.rank')?.textContent.trim();
+      return personaRankOrder(r) > rankIdx;
+    });
+    if (trAnchor) tbody.insertBefore(tr, trAnchor); else tbody.appendChild(tr);
+  }
+  syncLifecycle();
+}
+
+function removePersona(btn) {
+  const col = btn.closest('.persona-col');
+  if (!col) return;
+  if (!confirm('이 페르소나를 삭제하시겠습니까? (라이프사이클 행도 함께 삭제됩니다)')) return;
+  const pid = col.getAttribute('data-persona-id');
+  col.remove();
+  if (pid) {
+    const row = document.querySelector(`#lifecycle-tbody tr[data-persona-id="${pid}"]`);
+    if (row) row.remove();
+  }
+}
+
+function syncLifecycle() {
+  document.querySelectorAll('#persona-grid .persona-col').forEach(col => {
+    const pid  = col.getAttribute('data-persona-id'); if (!pid) return;
+    const hd   = col.querySelector('.persona-hd');
+    const bg   = hd ? (hd.style.background || hd.style.backgroundColor || '#888') : '#888';
+    const rank = (col.querySelector('.rank')?.textContent || '').trim();
+    const name = (col.querySelector('.name-input')?.value || '').trim();
+    const role = (col.querySelector('.persona-role')?.value || '').trim();
+    const letter = rank.charAt(0) || '•';
+    const roleLine = role || name || '(직업/신분 미입력)';
+    const cell = document.querySelector(`#lifecycle-tbody tr[data-persona-id="${pid}"] .lc-persona-cell`);
+    if (!cell) return;
+    cell.innerHTML = `
+      <div class="lc-persona">
+        <div class="lc-meta">
+          <div class="lc-role">${escapeHtml(roleLine)}</div>
+          <span class="lc-rank-badge" style="background:${bg}">${escapeHtml(rank)}</span>
+          ${name?`<div class="lc-name">${escapeHtml(name)}</div>`:''}
+        </div>
+      </div>`;
+  });
+}
+
+// ── Unit Types (Tab 6) ──
+const unitTypeColors = ['#1A237E','#1B5E20','#4A148C','#B71C1C','#E65100','#006064','#37474F','#AD1457'];
+let unitTypes = [
+  { id:'t1', letter:'A', name:'풀옵션 프라이빗',   color:unitTypeColors[0], area:'', capacity:1, rent:'', cookType:'조리형',  ffe:'', personas:{core:true,secondary:false,third:false}, note:'', image:'' },
+  { id:'t2', letter:'B', name:'호텔형 레지던스',   color:unitTypeColors[1], area:'', capacity:1, rent:'', cookType:'비조리형',ffe:'', personas:{core:false,secondary:true,third:false}, note:'', image:'' },
+  { id:'t3', letter:'C', name:'코리빙 스위트',     color:unitTypeColors[2], area:'', capacity:2, rent:'', cookType:'조리형',  ffe:'', personas:{core:false,secondary:false,third:true}, note:'', image:'' },
+];
+let nextUnitTypeIdx = 3;
+
+function renderUnitCards() {
+  const grid = document.getElementById('unit-cards-grid');
+  if (!grid) return;
+  grid.innerHTML = unitTypes.map(t => `
+    <div class="unit-card" data-id="${t.id}">
+      <div class="unit-card-hd" style="background:${t.color};color:#fff;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-radius:6px 6px 0 0">
+        <div class="flex items-center gap-8"><span class="type-unit-dot" style="background:#fff;color:${t.color};width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${t.letter}</span><span class="fw7" style="font-size:13px">타입 ${t.letter}</span></div>
+        <button class="delete-btn no-print" onclick="removeUnitCard('${t.id}')" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:14px">×</button>
+      </div>
+      <div class="unit-img-area" onclick="triggerUnitImgUpload(this)">
+        ${t.image?`<img src="${t.image}">`:`<div class="unit-img-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><div>도면 이미지 업로드</div><div style="font-size:10px;color:#CCC">클릭하여 선택</div></div>`}
+        <input type="file" accept="image/*" style="display:none" onchange="handleUnitImg(this,'${t.id}')">
+      </div>
+      <div class="unit-body">
+        <div class="fgroup"><label class="flabel">타입명</label><input class="finput" type="text" value="${escapeHtml(t.name)}" style="font-weight:700;font-size:15px" onchange="updateUnitField('${t.id}','name',this.value)"></div>
+        <div class="g2">
+          <div class="fgroup"><label class="flabel">전용면적 (㎡)</label><input class="finput" type="number" value="${t.area}" placeholder="㎡" onchange="updateUnitField('${t.id}','area',this.value)"></div>
+          <div class="fgroup"><label class="flabel">정원</label><input class="finput" type="number" value="${t.capacity}" min="1" onchange="updateUnitField('${t.id}','capacity',this.value)"></div>
+        </div>
+        <div class="g2">
+          <div class="fgroup"><label class="flabel">월 임대료 (만원)</label><input class="finput" type="number" value="${t.rent}" placeholder="만원" onchange="updateUnitField('${t.id}','rent',this.value)"></div>
+          <div class="fgroup"><label class="flabel">조리 타입</label><select class="fselect" onchange="updateUnitField('${t.id}','cookType',this.value)">
+            <option ${t.cookType==='조리형'?'selected':''}>조리형</option>
+            <option ${t.cookType==='비조리형'?'selected':''}>비조리형</option>
+          </select></div>
+        </div>
+        <div class="fgroup"><label class="flabel">구성 FF&amp;E</label><textarea class="ftextarea" style="min-height:60px" placeholder="가구·설비 목록" onchange="updateUnitField('${t.id}','ffe',this.value)">${escapeHtml(t.ffe)}</textarea></div>
+        <div class="fgroup"><label class="flabel">타겟 페르소나</label>
+          <div class="flex gap-8" style="flex-wrap:wrap;margin-top:4px">
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" ${t.personas.core?'checked':''} onchange="updateUnitPersona('${t.id}','core',this.checked)"> Core</label>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" ${t.personas.secondary?'checked':''} onchange="updateUnitPersona('${t.id}','secondary',this.checked)"> Secondary</label>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" ${t.personas.third?'checked':''} onchange="updateUnitPersona('${t.id}','third',this.checked)"> Third</label>
+          </div>
+        </div>
+        <div class="fgroup"><label class="flabel">특이사항</label><input class="finput" type="text" value="${escapeHtml(t.note)}" onchange="updateUnitField('${t.id}','note',this.value)"></div>
+      </div>
+    </div>`).join('');
+}
+
+function addUnitCard() {
+  const letter = String.fromCharCode(65 + unitTypes.length);
+  const id = 't' + (++nextUnitTypeIdx);
+  unitTypes.push({ id, letter, name:'', color:unitTypeColors[unitTypes.length % unitTypeColors.length], area:'', capacity:1, rent:'', cookType:'조리형', ffe:'', personas:{core:false,secondary:false,third:false}, note:'', image:'' });
+  renderUnitCards();
+  renderFloorDetail(); renderFloorSummary();
+}
+
+function removeUnitCard(id) {
+  if (!confirm('이 타입을 삭제하시겠습니까? (층별 배분도 초기화됩니다)')) return;
+  unitTypes = unitTypes.filter(t => t.id !== id);
+  floorData.forEach(fl => { if (fl.units) delete fl.units[id]; });
+  renderUnitCards();
+  renderFloorList(); renderFloorDetail(); renderFloorSummary();
+}
+
+function updateUnitField(id, field, value) {
+  const t = unitTypes.find(u => u.id === id); if (!t) return;
+  t[field] = value;
+  if (field === 'name' || field === 'area') { renderFloorDetail(); renderFloorSummary(); }
+}
+
+function updateUnitPersona(id, key, checked) {
+  const t = unitTypes.find(u => u.id === id); if (!t) return;
+  t.personas[key] = checked;
+}
+
+function triggerUnitImgUpload(area) { area.querySelector('input[type="file"]').click(); }
+function handleUnitImg(input, id) {
+  if (!input.files[0]) return;
+  const t = unitTypes.find(u => u.id === id); if (!t) return;
+  const reader = new FileReader();
+  reader.onload = e => { t.image = e.target.result; renderUnitCards(); };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── Revenue ──
+function addRevType() {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input class="finput-inline" value="신규 타입" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="100" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="10" oninput="calcRevenue()"></td><td><input class="finput-inline" type="number" value="90" oninput="calcRevenue()"></td><td class="rev-row-income" style="font-weight:700;color:#1A237E">0</td><td class="no-print"><button class="ibtn ibtn-del" onclick="removeRevType(this)">×</button></td>`;
+  document.getElementById('rev-type-tbody').appendChild(tr); calcRevenue();
+}
+function removeRevType(btn) { btn.closest('tr').remove(); calcRevenue(); }
+
+let revChart = null;
+function calcRevenue() {
+  let totalUnits = 0, maxMonthly = 0;
+  document.querySelectorAll('#rev-type-tbody tr').forEach(tr => {
+    const inps = [...tr.querySelectorAll('input')].map(i => parseFloat(i.value) || 0);
+    const [,rent,units,occ] = inps;
+    const income = rent * units * (occ / 100);
+    tr.querySelector('.rev-row-income').textContent = Math.round(income).toLocaleString() + ' 만원';
+    totalUnits += units; maxMonthly += rent * units;
+  });
+  document.getElementById('rev-total-units').textContent = totalUnits + ' 실';
+
+  const occBase = (parseFloat(document.getElementById('occ-base').value) || 85) / 100;
+  const occOpt  = (parseFloat(document.getElementById('occ-opt').value)  || 95) / 100;
+  const occCons = (parseFloat(document.getElementById('occ-cons').value) || 75) / 100;
+  const opex = ['opex-labor','opex-maint','opex-util','opex-etc'].reduce((s,id) => s + (parseFloat(document.getElementById(id).value)||0), 0);
+  document.getElementById('opex-total').textContent = opex.toLocaleString() + ' 만원';
+
+  const investAmt = (parseFloat(document.getElementById('irr-invest').value)||0) * 10000;
+  const exitAmt   = (parseFloat(document.getElementById('irr-exit').value)||0) * 10000;
+  const periodY   = parseInt(document.getElementById('irr-period').value)||10;
+  const capexMonthly = Math.max(0, (investAmt - exitAmt) / (periodY * 12));
+  document.getElementById('capex-monthly').textContent = Math.round(capexMonthly).toLocaleString() + ' 만원';
+  const totalMonthlyCost = opex + capexMonthly;
+
+  const monthlyBase = maxMonthly * occBase;
+  const noiBase = monthlyBase * 12 - opex * 12;
+  document.getElementById('rev-total-monthly').textContent = Math.round(monthlyBase).toLocaleString() + ' 만원';
+  document.getElementById('kpi-monthly').textContent = Math.round(monthlyBase).toLocaleString();
+  document.getElementById('kpi-noi').textContent = Math.round(noiBase).toLocaleString();
+
+  const beOcc = maxMonthly > 0 ? (totalMonthlyCost / maxMonthly * 100) : 0;
+  document.getElementById('breakeven-occ').textContent = beOcc.toFixed(1) + ' %';
+  document.getElementById('kpi-breakeven-vac').textContent = (100 - beOcc).toFixed(1);
+
+  const scen = (occ) => { const m = maxMonthly*occ; const a = m*12; const n = a-opex*12; return { m:Math.round(m), a:Math.round(a), n:Math.round(n), mg: a>0?(n/a*100).toFixed(1):0 }; };
+  const sO = scen(occOpt), sB = scen(occBase), sC = scen(occCons);
+  const setS = (sfx, s, occ) => {
+    document.getElementById(`s-occ-${sfx}`).textContent = (occ*100).toFixed(0)+'%';
+    document.getElementById(`s-monthly-${sfx}`).textContent = s.m.toLocaleString()+' 만원';
+    document.getElementById(`s-annual-${sfx}`).textContent = s.a.toLocaleString()+' 만원';
+    document.getElementById(`s-noi-${sfx}`).textContent = s.n.toLocaleString()+' 만원';
+    document.getElementById(`s-margin-${sfx}`).textContent = s.mg+'%';
+  };
+  setS('opt',sO,occOpt); setS('base',sB,occBase); setS('cons',sC,occCons);
+
+  // IRR
+  const growth = (parseFloat(document.getElementById('irr-growth').value)||2)/100;
+  const cfs = [-investAmt];
+  let noi = noiBase;
+  for (let y = 1; y <= periodY; y++) { cfs.push(y===periodY ? noi+exitAmt : noi); noi *= (1+growth); }
+  const irr = computeIRR(cfs);
+  document.getElementById('kpi-irr').textContent = irr !== null ? (irr*100).toFixed(2) : '계산 불가';
+
+  renderRevChart([sO,sB,sC]);
+}
+
+function computeIRR(cfs, r=0.1, maxIter=300, tol=1e-7) {
+  for (let i=0; i<maxIter; i++) {
+    let npv=0, dnpv=0;
+    cfs.forEach((c,t) => { npv += c/Math.pow(1+r,t); dnpv -= t*c/Math.pow(1+r,t+1); });
+    if (Math.abs(dnpv) < 1e-12) return null;
+    const rn = r - npv/dnpv;
+    if (Math.abs(rn-r) < tol) return rn > -1 ? rn : null;
+    r = rn;
+  }
+  return null;
+}
+
+function renderRevChart(s) {
+  const ctx = document.getElementById('rev-chart');
+  if (revChart) revChart.destroy();
+  revChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:['낙관적','기본','보수적'], datasets:[
+      { label:'연 임대수익', data:s.map(x=>x.a), backgroundColor:'rgba(245,197,24,0.75)', borderRadius:4 },
+      { label:'연 NOI', data:s.map(x=>x.n), backgroundColor:'rgba(26,35,126,0.75)', borderRadius:4 }
+    ]},
+    options:{ responsive:true, plugins:{ title:{ display:true, text:'OCC 시나리오별 수익 비교 (만원/년)' } }, scales:{ y:{ beginAtZero:true } } }
+  });
+}
+// ── Init ──
+window.addEventListener('DOMContentLoaded', () => {
+  renderUnitCards();
+  renderFloorList();
+  selectFloor(selFloorId);
+  renderFloorSummary();
+  syncLifecycle();
+  calcRevenue();
+  initKakaoMap();
+  initSupabase();
+});
+
+// ═════════════════════════════════════════════
+// ── Supabase 연동 (Phase 2) ──
+// ═════════════════════════════════════════════
+const SUPABASE_URL = 'https://fdvqpurwqzaykmasdzea.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_gGCtue1KGJroJmxV5V3WqA_8UolAXEE';
+let sb = null;
+let currentProjectId = null;
+let saveTimer = null;
+let isLoading = false;
+
+async function initSupabase() {
+  if (typeof supabase === 'undefined') { console.warn('Supabase SDK 미로드'); return; }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const projectId = urlParams.get('id');
+
+  if (projectId) {
+    currentProjectId = projectId;
+    await loadProject(projectId);
+  }
+
+  setSaveStatus('대기 중 (새 프로젝트)');
+  attachAutoSave();
+}
+
+function setSaveStatus(msg, color) {
+  const el = document.getElementById('save-status');
+  if (el) { el.textContent = msg; el.style.color = color || '#888'; }
+}
+
+function attachAutoSave() {
+  document.addEventListener('input', onAnyInput, true);
+  document.addEventListener('change', onAnyInput, true);
+}
+function onAnyInput(e) {
+  if (isLoading) return;
+  if (!e.target.matches('input, textarea, select')) return;
+  if (e.target.closest('.no-print') && e.target.type === 'file') return;
+  clearTimeout(saveTimer);
+  setSaveStatus('저장 대기…', '#888');
+  saveTimer = setTimeout(saveProject, 1200);
+}
+
+function collectData() {
+  const getVal = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const gatherTextareas = container => {
+    const result = {};
+    if (!container) return result;
+    container.querySelectorAll('input[type=text], input[type=number], textarea, select').forEach((el, i) => {
+      const key = el.id || el.name || (el.placeholder ? 'ph:'+el.placeholder : 'idx:'+i);
+      if (!result[key]) result[key] = [];
+      result[key].push(el.value);
+    });
+    return result;
+  };
+
+  const personas = [...document.querySelectorAll('#persona-grid .persona-col')].map(col => ({
+    pid: col.getAttribute('data-persona-id'),
+    rank: col.querySelector('.rank')?.textContent.trim(),
+    name: col.querySelector('.name-input')?.value || '',
+    fields: [...col.querySelectorAll('input, textarea')].map(i => i.value)
+  }));
+
+  const progs = {};
+  ['p1-list','p2-list','p3-list','p4-list'].forEach(id => {
+    progs[id] = [...document.querySelectorAll(`#${id} .prog-item`)].map(it => ({
+      name: it.querySelector('.prog-name')?.value || '',
+      svc:  it.querySelector('.prog-svc')?.value  || ''
+    }));
+  });
+  const progMemos = [...document.querySelectorAll('.prog-memo textarea')].map(t=>t.value);
+
+  return {
+    title: getVal('pj-title'), location: getVal('pj-location'),
+    date: getVal('pj-date'), manager: getVal('pj-manager'),
+    tab1: gatherTextareas(document.getElementById('tab1')),
+    tab2: { personas, insight: document.querySelector('#tab2 textarea.target-insight')?.value || '' },
+    tab3: gatherTextareas(document.getElementById('tab3')),
+    tab4: { floorData, unitTypesRef: unitTypes.map(t=>t.id) },
+    tab5: { progs, memos: progMemos, note: gatherTextareas(document.querySelector('#tab5 .fgroup.mt-16')) },
+    tab6: { unitTypes },
+    tab7: gatherTextareas(document.getElementById('tab7'))
+  };
+}
+
+async function saveProject() {
+  if (!sb) return;
+  const data = collectData();
+  setSaveStatus('저장 중…', '#888');
+  try {
+    if (currentProjectId) {
+      const { error } = await sb.from('projects').update({
+        title: data.title, location: data.location, date: data.date, manager: data.manager,
+        tab1: data.tab1, tab2: data.tab2, tab3: data.tab3, tab4: data.tab4,
+        tab5: data.tab5, tab6: data.tab6, tab7: data.tab7
+      }).eq('id', currentProjectId);
+      if (error) throw error;
+    } else {
+      const { data: inserted, error } = await sb.from('projects').insert({
+        title: data.title, location: data.location, date: data.date, manager: data.manager,
+        tab1: data.tab1, tab2: data.tab2, tab3: data.tab3, tab4: data.tab4,
+        tab5: data.tab5, tab6: data.tab6, tab7: data.tab7
+      }).select('id').single();
+      if (error) throw error;
+      currentProjectId = inserted.id;
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', currentProjectId);
+      window.history.replaceState({}, '', url);
+    }
+    setSaveStatus('✓ 저장됨 · '+ new Date().toLocaleTimeString('ko-KR'), '#2E7D32');
+  } catch (e) {
+    console.error(e);
+    setSaveStatus('⚠ 저장 실패: '+e.message, '#C62828');
+  }
+}
+
+async function loadProject(id) {
+  if (!sb) return;
+  isLoading = true;
+  setSaveStatus('불러오는 중…', '#888');
+  try {
+    const { data, error } = await sb.from('projects').select('*').eq('id', id).single();
+    if (error) throw error;
+    if (!data) { alert('프로젝트를 찾을 수 없습니다'); isLoading = false; return; }
+
+    document.getElementById('pj-title').value    = data.title || '';
+    document.getElementById('pj-location').value = data.location || '';
+    document.getElementById('pj-date').value     = data.date || '';
+    document.getElementById('pj-manager').value  = data.manager || '';
+    if (data.title) updateTitle(data.title);
+
+    if (data.tab4?.floorData) { floorData = data.tab4.floorData; selFloorId = floorData[0]?.id || null; }
+    if (data.tab6?.unitTypes) { unitTypes = data.tab6.unitTypes; }
+
+    renderUnitCards(); renderFloorList();
+    if (selFloorId) selectFloor(selFloorId);
+    renderFloorSummary(); syncLifecycle(); calcRevenue();
+
+    setSaveStatus('✓ 불러옴', '#2E7D32');
+  } catch (e) {
+    console.error(e);
+    setSaveStatus('⚠ 불러오기 실패: '+e.message, '#C62828');
+  } finally { isLoading = false; }
+}
+
+async function newProject() {
+  if (!confirm('새 프로젝트를 시작하시겠습니까? 저장되지 않은 변경사항은 사라집니다.')) return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete('id');
+  window.location.href = url.toString();
+}
+
+function shareProjectUrl() {
+  if (!currentProjectId) { alert('먼저 프로젝트를 저장한 후 공유할 수 있습니다.\n(아무 입력이나 수정하면 자동 저장됩니다)'); return; }
+  const url = window.location.href;
+  navigator.clipboard.writeText(url).then(() => alert('공유 URL이 클립보드에 복사되었습니다:\n\n'+url));
+}
+</script>
+</body>
+</html>
