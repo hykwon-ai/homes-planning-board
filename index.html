@@ -503,8 +503,8 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
   <div class="section">
     <div class="section-header">
       <div class="section-title"><span class="stag">TAB 1</span> 입지 분석 맵</div>
-      <button class="ai-btn no-print" onclick="alert('Phase 2에서 Claude API 연동 예정\n\n주소를 입력하면 인근 업무지구·대학·교통·인프라를 자동 조사합니다.')">
-        ✦ AI 자료조사 자동 기입 <span class="ai-badge">Phase 2</span>
+      <button class="ai-btn no-print" onclick="aiLocationResearch()">
+        ✦ AI 자료조사 자동 기입
       </button>
     </div>
 
@@ -614,7 +614,7 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
       <div class="section-title"><span class="stag">TAB 2</span> 타겟 페르소나</div>
       <div class="flex gap-8 no-print">
         <button class="btn btn-outline btn-sm" onclick="addPersona()">+ 페르소나 추가</button>
-        <button class="ai-btn" onclick="alert('Phase 2에서 Claude API로\n입지 데이터 기반 페르소나 자동 추천 예정')">✦ AI 페르소나 추천 <span class="ai-badge">Phase 2</span></button>
+        <button class="ai-btn" onclick="aiPersonaRecommend()">✦ AI 페르소나 추천</button>
       </div>
     </div>
     <div id="persona-grid">
@@ -790,7 +790,7 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
   <div class="section">
     <div class="section-header">
       <div class="section-title"><span class="stag">TAB 5</span> 공용부 프로그램</div>
-      <button class="ai-btn no-print" onclick="alert('Phase 2에서 탭1~4 데이터 기반\nClaude API 프로그램 자동 추천 예정')">✦ AI 프로그램 추천 <span class="ai-badge">Phase 2</span></button>
+      <button class="ai-btn no-print" onclick="aiProgramRecommend()">✦ AI 프로그램 추천</button>
     </div>
     <div class="g2">
       <div class="prog-section">
@@ -1797,6 +1797,117 @@ function shareProjectUrl() {
   if (!currentProjectId) { alert('먼저 프로젝트를 저장한 후 공유할 수 있습니다.\n(아무 입력이나 수정하면 자동 저장됩니다)'); return; }
   const url = window.location.href;
   navigator.clipboard.writeText(url).then(() => alert('공유 URL이 클립보드에 복사되었습니다:\n\n'+url));
+}
+
+/* ── Claude API 호출 (Edge Function 프록시) ── */
+const EDGE_FN_URL = 'https://fdvqpurwqzaykmasdzea.supabase.co/functions/v1/claude-proxy';
+const ANON_KEY_HDR = 'sb_publishable_gGCtue1KGJroJmxV5V3WqA_8UolAXEE';
+
+async function callClaude(system, user) {
+  const res = await fetch(EDGE_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY_HDR },
+    body: JSON.stringify({ system, user, max_tokens: 1800 }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ? JSON.stringify(data.error) : 'Edge Function 오류');
+  return data.text || '';
+}
+
+/* ── 탭1: AI 입지 자료조사 ── */
+async function aiLocationResearch() {
+  const addr = document.getElementById('map-address')?.value?.trim();
+  if (!addr) { alert('먼저 프로젝트 주소를 입력해 주세요.'); return; }
+  const btn = document.querySelector('#tab1 .ai-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ 조사 중...'; btn.disabled = true;
+  try {
+    const text = await callClaude(
+      '당신은 한국 부동산 개발 전문가입니다. 입지 분석 데이터를 JSON 형식으로 정확하게 반환하세요.',
+      `다음 주소의 입지 정보를 조사해주세요: "${addr}"\n\n아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n{\n  "pop": ["주요 유입지역1 / 규모", "주요 유입지역2 / 규모"],\n  "biz": ["기업명 / 거리", "기업명 / 거리"],\n  "univ": ["대학교명 / 거리"],\n  "infra": ["시설명 / 거리", "시설명 / 거리"],\n  "transit": ["지하철역 / 노선 / 거리", "버스정류장 / 노선"]\n}\n각 배열은 최대 4개 항목.`
+    );
+    const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+    const fill = (listId, items) => {
+      const el = document.getElementById(listId); if (!el) return;
+      el.innerHTML = '';
+      items.forEach(v => {
+        const row = document.createElement('div'); row.className = 'map-info-item';
+        row.innerHTML = `<input class="finput-inline" type="text" value="${v.replace(/"/g,'')}"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
+        el.appendChild(row);
+      });
+    };
+    if (json.pop) fill('pop-list', json.pop);
+    if (json.biz) fill('biz-list', json.biz);
+    if (json.univ) fill('univ-list', json.univ);
+    if (json.infra) fill('infra-list', json.infra);
+    if (json.transit) fill('transit-list', json.transit);
+    onAnyInput();
+  } catch(e) { alert('AI 조사 실패: ' + e.message); }
+  finally { btn.innerHTML = orig; btn.disabled = false; }
+}
+
+/* ── 탭2: AI 페르소나 추천 ── */
+async function aiPersonaRecommend() {
+  const addr = document.getElementById('map-address')?.value?.trim() || '미입력';
+  const title = document.getElementById('pj-title')?.value?.trim() || '임대형 주거시설';
+  const btn = document.querySelector('#tab2 .ai-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ 추천 중...'; btn.disabled = true;
+  try {
+    const text = await callClaude(
+      '당신은 한국 임대형 주거시설 기획 전문가입니다. 타겟 페르소나를 JSON 형식으로 반환하세요.',
+      `프로젝트: "${title}", 위치: "${addr}"\n\n아래 JSON 형식으로만 응답하세요:\n{\n  "personas": [\n    { "rank": "CORE", "name": "페르소나 이름", "background": "나이·직업·상황 설명", "painpoints": "주요 불편 3가지(줄바꿈 구분)", "needs": "주요 니즈 3가지(줄바꿈 구분)" },\n    { "rank": "SECONDARY", "name": "페르소나 이름", "background": "...", "painpoints": "...", "needs": "..." },\n    { "rank": "3RD", "name": "페르소나 이름", "background": "...", "painpoints": "...", "needs": "..." }\n  ]\n}`
+    );
+    const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+    const grid = document.getElementById('persona-grid');
+    if (!grid || !json.personas) throw new Error('응답 파싱 실패');
+    const rankMap = { 'CORE': 0, 'SECONDARY': 1, '3RD': 2 };
+    const cols = grid.querySelectorAll('.persona-col');
+    json.personas.forEach((p, i) => {
+      const col = cols[i]; if (!col) return;
+      const nameEl = col.querySelector('.name-input'); if (nameEl) nameEl.value = p.name || '';
+      const textareas = col.querySelectorAll('textarea');
+      if (textareas[0]) textareas[0].value = p.background || '';
+      if (textareas[1]) textareas[1].value = p.painpoints || '';
+      if (textareas[2]) textareas[2].value = p.needs || '';
+    });
+    onAnyInput();
+    alert('✓ AI 페르소나 추천 완료! 내용을 확인하고 수정하세요.');
+  } catch(e) { alert('AI 추천 실패: ' + e.message); }
+  finally { btn.innerHTML = orig; btn.disabled = false; }
+}
+
+/* ── 탭5: AI 프로그램 추천 ── */
+async function aiProgramRecommend() {
+  const addr = document.getElementById('map-address')?.value?.trim() || '미입력';
+  const title = document.getElementById('pj-title')?.value?.trim() || '임대형 주거시설';
+  const personaNames = [...document.querySelectorAll('#persona-grid .name-input')].map(el => el.value).filter(Boolean).join(', ') || '미입력';
+  const btn = document.querySelector('#tab5 .ai-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ 추천 중...'; btn.disabled = true;
+  try {
+    const text = await callClaude(
+      '당신은 한국 임대형 주거시설 공용부 기획 전문가입니다. 공용부 프로그램을 JSON 형식으로 반환하세요.',
+      `프로젝트: "${title}", 위치: "${addr}", 타겟: "${personaNames}"\n\nP1(필수생활기반)·P2(커뮤니티)·P3(편의·웰니스)·P4(차별화) 분류로 추천하세요.\n\n아래 JSON 형식으로만 응답하세요:\n{\n  "p1": [{"name":"프로그램명","svc":"제공서비스 메모"}],\n  "p2": [{"name":"...","svc":"..."}],\n  "p3": [{"name":"...","svc":"..."}],\n  "p4": [{"name":"...","svc":"..."}]\n}\n각 카테고리 최대 5개.`
+    );
+    const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+    const fillProg = (listId, items, color) => {
+      const el = document.getElementById(listId); if (!el) return;
+      el.innerHTML = '';
+      items.forEach(item => {
+        const row = document.createElement('div'); row.className = 'prog-item';
+        row.innerHTML = `<div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div><input class="prog-name" type="text" value="${(item.name||'').replace(/"/g,'')}"><input class="prog-svc" type="text" value="${(item.svc||'').replace(/"/g,'')}"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button>`;
+        el.appendChild(row);
+      });
+    };
+    if (json.p1) fillProg('p1-list', json.p1, 'var(--p1)');
+    if (json.p2) fillProg('p2-list', json.p2, 'var(--p2)');
+    if (json.p3) fillProg('p3-list', json.p3, 'var(--p3)');
+    if (json.p4) fillProg('p4-list', json.p4, 'var(--p4)');
+    onAnyInput();
+    alert('✓ AI 프로그램 추천 완료! 내용을 확인하고 수정하세요.');
+  } catch(e) { alert('AI 추천 실패: ' + e.message); }
+  finally { btn.innerHTML = orig; btn.disabled = false; }
 }
 </script>
 </body>
