@@ -254,6 +254,12 @@ tfoot td { background: var(--yellow-light); font-weight: 700; padding: 10px 12px
 
 /* ── Map area ── */
 #kakao-map { width: 100%; height: 380px; background: #E8ECF0; display: none; border-radius: 10px; border: 1px solid var(--border); }
+#kakao-map-wrap { position: relative; }
+#kakao-map-capture-img { display: none; }
+#kakao-map-capture-img.has-image { display: block; max-width: 200px; position: absolute; right: 12px; bottom: 12px; border: 2px solid var(--yellow); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 5; }
+@media print {
+  #kakao-map-capture-img.has-image { display: block !important; position: static !important; max-width: 100% !important; width: 100% !important; max-height: 400px; object-fit: contain; border: 1px solid var(--border) !important; box-shadow: none !important; }
+}
 .map-info-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 14px; }
 .map-info-card { background: var(--light); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
 .map-info-title { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
@@ -480,8 +486,8 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
   </div>
   <div class="flex gap-8 items-center">
     <span id="save-status" style="font-size:11px;color:#888;margin-right:4px">—</span>
-    <button class="btn btn-outline btn-sm" onclick="newProject()">+ 새 프로젝트</button>
-    <button class="btn btn-outline btn-sm" onclick="shareProjectUrl()">🔗 공유</button>
+    <button class="btn btn-primary btn-sm" onclick="newProject()">+ 새 프로젝트</button>
+    <button class="btn btn-primary btn-sm" onclick="shareProjectUrl()">🔗 공유</button>
     <button class="btn btn-primary btn-sm" onclick="window.print()">인쇄 / PDF</button>
   </div>
 </header>
@@ -510,14 +516,21 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
     </div>
 
     <!-- 카카오맵 -->
-    <div id="kakao-map" style="display:block"></div>
+    <div id="kakao-map-wrap">
+      <div id="kakao-map" class="no-print" style="display:block"></div>
+      <!-- PDF용 캡처 이미지 표시 영역 -->
+      <img id="kakao-map-capture-img" alt="입지 지도 캡처">
+    </div>
 
     <div class="fgroup mt-8 no-print">
       <label class="flabel">프로젝트 주소 (지도 중심 설정)</label>
       <div class="flex gap-8">
         <input class="finput" id="map-address" type="text" placeholder="예: 서울시 강남구 테헤란로 123">
         <button class="btn btn-outline" onclick="searchAddress()">검색</button>
+        <button class="btn btn-outline" onclick="document.getElementById('kakao-map-capture-file').click()">📷 PDF용 지도 캡처 업로드</button>
+        <input type="file" id="kakao-map-capture-file" accept="image/*" style="display:none" onchange="handleKakaoMapCapture(this)">
       </div>
+      <p class="hint mt-8">카카오 지도는 PDF 저장 시 누락됩니다. 화면 캡처(Cmd+Shift+4)로 지도 이미지를 저장한 뒤 위 버튼으로 업로드하면 PDF에 포함됩니다.</p>
     </div>
   </div>
 
@@ -577,23 +590,23 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
     <div class="section-header">
       <div class="section-title">생활이동 · 유입인구 대시보드 <span style="font-size:11px;font-weight:400;color:#888;margin-left:4px">서울 열린데이터광장 실시간</span></div>
       <div class="flex gap-8 no-print seoul-iframe-controls">
-        <a href="https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do" id="seoul-open-new" target="_blank" class="btn btn-outline btn-sm">새 창에서 열기 ↗</a>
+        <a href="https://data.seoul.go.kr/bsp/wgs/theme/detail/1.do?tab=portal" id="seoul-open-new" target="_blank" class="btn btn-outline btn-sm">새 창에서 열기 ↗</a>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('seoul-capture-file').click()">PDF용 캡처 업로드</button>
         <input type="file" id="seoul-capture-file" accept="image/*" style="display:none" onchange="handleSeoulCapture(this)">
       </div>
     </div>
     <div class="seoul-iframe-wrap">
       <div class="seoul-iframe-tabs no-print">
-        <button class="seoul-iframe-tab active" onclick="switchSeoulTab(this,'https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do')">서울 생활이동</button>
+        <button class="seoul-iframe-tab active" onclick="switchSeoulTab(this,'https://data.seoul.go.kr/bsp/wgs/theme/detail/1.do?tab=portal')">생활이동·유입인구</button>
         <button class="seoul-iframe-tab" onclick="switchSeoulTab(this,'https://data.seoul.go.kr/dataVisual/seoul/capitalRegionLivingMigration.do')">수도권 생활이동</button>
       </div>
-      <iframe id="seoul-iframe" class="seoul-iframe no-print" src="https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do" loading="lazy"></iframe>
+      <iframe id="seoul-iframe" class="seoul-iframe no-print" src="https://data.seoul.go.kr/bsp/wgs/theme/detail/1.do?tab=portal" loading="lazy"></iframe>
       <!-- 프린트 전용 fallback (캡처 이미지 or URL) -->
       <div class="seoul-print-fallback" id="seoul-print-fallback">
         <img id="seoul-capture-img" style="display:none" alt="생활이동 캡처">
         <div id="seoul-print-link">
           <p style="font-size:13px;font-weight:700;margin-bottom:8px">생활이동 · 유입인구 데이터 (실시간 웹 대시보드)</p>
-          <p style="font-size:12px;color:#666;word-break:break-all;margin-bottom:6px" id="seoul-print-url">https://data.seoul.go.kr/dataVisual/seoul/seoulLivingMigration.do</p>
+          <p style="font-size:12px;color:#666;word-break:break-all;margin-bottom:6px" id="seoul-print-url">https://data.seoul.go.kr/bsp/wgs/theme/detail/1.do?tab=portal</p>
           <p class="pf-hint">PDF용 캡처 업로드 시 여기에 표시됩니다</p>
         </div>
       </div>
@@ -1006,6 +1019,17 @@ function initKakaoMap() {
     window._map = map;
     window._geo = new kakao.maps.services.Geocoder();
   });
+}
+function handleKakaoMapCapture(input) {
+  const file = input.files?.[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('kakao-map-capture-img');
+    img.src = e.target.result;
+    img.classList.add('has-image');
+    if (typeof onAnyInput === 'function') onAnyInput();
+  };
+  reader.readAsDataURL(file);
 }
 function searchAddress() {
   const addr = document.getElementById('map-address').value.trim();
