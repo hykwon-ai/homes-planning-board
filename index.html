@@ -188,6 +188,10 @@ tfoot td { background: var(--yellow-light); font-weight: 700; padding: 10px 12px
 .persona-hd .name-input { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 700; outline: none; flex: 1; font-family: inherit; }
 .persona-hd .name-input::placeholder { color: rgba(255,255,255,0.5); }
 .persona-body { padding: 16px; }
+.persona-marketfit { margin: 0 16px 16px; padding: 10px 12px; background: #FFF8E1; border-left: 3px solid var(--brand); border-radius: 6px; font-size: 12px; color: #555; line-height: 1.5; }
+.persona-marketfit b { color: #1A1A1A; display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: 0.5px; }
+#ai-market-summary { margin-bottom: 14px; padding: 14px 16px; background: linear-gradient(90deg, #FFF8E1 0%, #FFFCEC 100%); border: 1px solid #F0D87A; border-radius: 10px; font-size: 13px; color: #333; line-height: 1.6; display: none; }
+#ai-market-summary b { display: block; font-size: 12px; color: #8B6F00; margin-bottom: 6px; letter-spacing: 0.5px; }
 
 /* ── Program ── */
 .prog-section { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -629,6 +633,28 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
 
 <!-- ═══ TAB 2: 타겟 ═══ -->
 <div id="tab2" class="tab-panel">
+  <!-- 프로젝트 개요 (AI 추천의 컨텍스트로 사용) -->
+  <div class="section">
+    <div class="section-title mb-12">프로젝트 개요 <span style="font-size:11px;font-weight:400;color:#888;margin-left:4px">AI 추천 정확도를 높이는 입력값</span></div>
+    <div class="g4">
+      <div class="fgroup">
+        <label class="flabel">시설 유형</label>
+        <select id="concept-type" class="finput">
+          <option value="">선택</option>
+          <option>임대형 기숙사</option>
+          <option>호텔형 임대</option>
+          <option>공유주거 (코리빙)</option>
+          <option>단기임대주택</option>
+          <option>외국인 전용 임대</option>
+          <option>기타</option>
+        </select>
+      </div>
+      <div class="fgroup"><label class="flabel">평균 전용면적</label><input id="concept-area" class="finput" type="text" placeholder="예: 20~30㎡"></div>
+      <div class="fgroup"><label class="flabel">예상 월 임대료대</label><input id="concept-rent" class="finput" type="text" placeholder="예: 70~100만원"></div>
+      <div class="fgroup"><label class="flabel">핵심 컨셉 / 차별점</label><input id="concept-key" class="finput" type="text" placeholder="예: 외국인 학생 풀서비스"></div>
+    </div>
+  </div>
+
   <div class="section">
     <div class="section-header">
       <div class="section-title"><span class="stag">TAB 2</span> 타겟 페르소나</div>
@@ -637,6 +663,7 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
         <button class="ai-btn" onclick="aiPersonaRecommend()">✦ AI 페르소나 추천</button>
       </div>
     </div>
+    <div id="ai-market-summary"></div>
     <div id="persona-grid">
       <!-- Core -->
       <div class="persona-col" data-persona-id="p1">
@@ -1884,22 +1911,77 @@ async function aiLocationResearch() {
   finally { btn.innerHTML = orig; btn.disabled = false; }
 }
 
-/* ── 탭2: AI 페르소나 추천 ── */
-async function aiPersonaRecommend() {
+/* ── 컨텍스트 수집(공통) ── */
+function collectAIContext() {
   const addr = document.getElementById('map-address')?.value?.trim() || '미입력';
   const title = document.getElementById('pj-title')?.value?.trim() || '임대형 주거시설';
+  const conceptType = document.getElementById('concept-type')?.value?.trim() || '미정';
+  const conceptArea = document.getElementById('concept-area')?.value?.trim() || '미정';
+  const conceptRent = document.getElementById('concept-rent')?.value?.trim() || '미정';
+  const conceptKey  = document.getElementById('concept-key')?.value?.trim()  || '미정';
+  const listVals = id => [...document.querySelectorAll(`#${id} .finput-inline`)].map(e => e.value.trim()).filter(Boolean);
+  return {
+    addr, title, conceptType, conceptArea, conceptRent, conceptKey,
+    pop: listVals('pop-list'), biz: listVals('biz-list'), univ: listVals('univ-list'),
+    infra: listVals('infra-list'), transit: listVals('transit-list')
+  };
+}
+function buildContextBlock(ctx) {
+  return `[프로젝트 정보]
+- 명칭: ${ctx.title}
+- 위치(주소): ${ctx.addr}
+- 시설 유형: ${ctx.conceptType}
+- 평균 전용면적: ${ctx.conceptArea}
+- 예상 월 임대료대: ${ctx.conceptRent}
+- 핵심 컨셉/차별점: ${ctx.conceptKey}
+
+[입지 분석 데이터 (탭1 입력값)]
+- 유입 지역(출퇴근): ${ctx.pop.join(', ') || '없음'}
+- 주변 업무지구·기업: ${ctx.biz.join(', ') || '없음'}
+- 인근 대학·어학당: ${ctx.univ.join(', ') || '없음'}
+- 주변 인프라: ${ctx.infra.join(', ') || '없음'}
+- 대중교통: ${ctx.transit.join(', ') || '없음'}`;
+}
+
+/* ── 탭2: AI 페르소나 추천 ── */
+async function aiPersonaRecommend() {
+  const ctx = collectAIContext();
   const btn = document.querySelector('#tab2 .ai-btn');
   const orig = btn.innerHTML;
   btn.innerHTML = '⏳ 추천 중...'; btn.disabled = true;
   try {
     const text = await callClaude(
-      '당신은 한국 임대형 주거시설 기획 전문가입니다. 타겟 페르소나를 JSON 형식으로 반환하세요.',
-      `프로젝트: "${title}", 위치: "${addr}"\n\n아래 JSON 형식으로만 응답하세요:\n{\n  "personas": [\n    { "rank": "CORE", "name": "페르소나 이름", "background": "나이·직업·상황 설명", "painpoints": "주요 불편 3가지(줄바꿈 구분)", "needs": "주요 니즈 3가지(줄바꿈 구분)" },\n    { "rank": "SECONDARY", "name": "페르소나 이름", "background": "...", "painpoints": "...", "needs": "..." },\n    { "rank": "3RD", "name": "페르소나 이름", "background": "...", "painpoints": "...", "needs": "..." }\n  ]\n}`
+      '당신은 한국 임대형 주거시설(기숙사·호텔식·코리빙) 기획 전문가입니다. 입지 분석 + 프로젝트 컨셉 + 주변 임대료 시세를 종합 검토하여 현실성 있는 타겟 페르소나를 JSON 형식으로 정확하게 반환하세요. 한국어로만 답변하세요.',
+      `${buildContextBlock(ctx)}
+
+[요청]
+1) 위 입지·컨셉·임대료대 기반으로 가장 가능성 높은 타겟 3계층(CORE/SECONDARY/3RD)을 도출하세요.
+2) 각 페르소나는 위치·임대료에 실제로 반응할 만한 인물이어야 합니다(예: 인근 대학 학생, 업무지구 직장인, 단기 출장자 등).
+3) 주변 부동산 월세 시세를 추정하여 본 프로젝트 임대료(${ctx.conceptRent})와 비교한 가격 경쟁력 분석을 "marketFit" 필드에 1~2문장으로 포함하세요.
+4) 페인포인트·니즈는 임대료 민감도와 위치 특성을 반영하세요.
+
+아래 JSON 형식으로만 응답하세요(추가 텍스트 금지):
+{
+  "marketSummary": "주변 임대료 시세와 본 프로젝트 임대료의 경쟁력 평가 (2~3문장)",
+  "personas": [
+    { "rank": "CORE", "name": "페르소나 이름", "background": "나이·직업·라이프스타일·이용동기(2~3문장)", "painpoints": "주요 불편 3가지를 줄바꿈으로 구분", "needs": "주요 니즈 3가지를 줄바꿈으로 구분", "marketFit": "이 페르소나 입장의 가격 경쟁력 평가(1~2문장)" },
+    { "rank": "SECONDARY", "name": "...", "background": "...", "painpoints": "...", "needs": "...", "marketFit": "..." },
+    { "rank": "3RD", "name": "...", "background": "...", "painpoints": "...", "needs": "...", "marketFit": "..." }
+  ]
+}`
     );
     const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
     const grid = document.getElementById('persona-grid');
     if (!grid || !json.personas) throw new Error('응답 파싱 실패');
-    const rankMap = { 'CORE': 0, 'SECONDARY': 1, '3RD': 2 };
+    const summaryBox = document.getElementById('ai-market-summary');
+    if (summaryBox) {
+      if (json.marketSummary) {
+        summaryBox.innerHTML = `<b>💰 주변 임대료 시세 분석</b>${String(json.marketSummary).replace(/</g,'&lt;')}`;
+        summaryBox.style.display = 'block';
+      } else {
+        summaryBox.style.display = 'none';
+      }
+    }
     const cols = grid.querySelectorAll('.persona-col');
     json.personas.forEach((p, i) => {
       const col = cols[i]; if (!col) return;
@@ -1908,6 +1990,18 @@ async function aiPersonaRecommend() {
       if (textareas[0]) textareas[0].value = p.background || '';
       if (textareas[1]) textareas[1].value = p.painpoints || '';
       if (textareas[2]) textareas[2].value = p.needs || '';
+      // marketFit 표시 (영구 저장 X — AI 추천 시마다 갱신)
+      let mf = col.querySelector('.persona-marketfit');
+      if (p.marketFit) {
+        if (!mf) {
+          mf = document.createElement('div');
+          mf.className = 'persona-marketfit no-print';
+          col.appendChild(mf);
+        }
+        mf.innerHTML = `<b>💰 가격 경쟁력</b>${String(p.marketFit).replace(/</g,'&lt;')}`;
+      } else if (mf) {
+        mf.remove();
+      }
     });
     setSaveStatus('저장 대기…', '#888'); clearTimeout(saveTimer); saveTimer = setTimeout(saveProject, 1200);
     alert('✓ AI 페르소나 추천 완료! 내용을 확인하고 수정하세요.');
@@ -1917,16 +2011,40 @@ async function aiPersonaRecommend() {
 
 /* ── 탭5: AI 프로그램 추천 ── */
 async function aiProgramRecommend() {
-  const addr = document.getElementById('map-address')?.value?.trim() || '미입력';
-  const title = document.getElementById('pj-title')?.value?.trim() || '임대형 주거시설';
-  const personaNames = [...document.querySelectorAll('#persona-grid .name-input')].map(el => el.value).filter(Boolean).join(', ') || '미입력';
+  const ctx = collectAIContext();
+  const personas = [...document.querySelectorAll('#persona-grid .persona-col')].map(col => {
+    const rank = col.querySelector('.rank')?.textContent.trim() || '';
+    const name = col.querySelector('.name-input')?.value.trim() || '';
+    const role = col.querySelector('.persona-role')?.value.trim() || '';
+    return name ? `${rank}: ${name}${role ? ' ('+role+')' : ''}` : '';
+  }).filter(Boolean).join(' / ') || '미입력';
   const btn = document.querySelector('#tab5 .ai-btn');
   const orig = btn.innerHTML;
   btn.innerHTML = '⏳ 추천 중...'; btn.disabled = true;
   try {
     const text = await callClaude(
-      '당신은 한국 임대형 주거시설 공용부 기획 전문가입니다. 공용부 프로그램을 JSON 형식으로 반환하세요.',
-      `프로젝트: "${title}", 위치: "${addr}", 타겟: "${personaNames}"\n\nP1(필수생활기반)·P2(커뮤니티)·P3(편의·웰니스)·P4(차별화) 분류로 추천하세요.\n\n아래 JSON 형식으로만 응답하세요:\n{\n  "p1": [{"name":"프로그램명","svc":"제공서비스 메모"}],\n  "p2": [{"name":"...","svc":"..."}],\n  "p3": [{"name":"...","svc":"..."}],\n  "p4": [{"name":"...","svc":"..."}]\n}\n각 카테고리 최대 5개.`
+      '당신은 한국 임대형 주거시설(기숙사·호텔식·코리빙) 공용부 기획 전문가입니다. 입지·컨셉·타겟 페르소나를 종합 검토하여 현실성 있는 공용부 프로그램을 JSON 형식으로 반환하세요. 한국어로만 답변하세요.',
+      `${buildContextBlock(ctx)}
+
+[타겟 페르소나(탭2)]
+${personas}
+
+[요청]
+1) 위 입지·컨셉·임대료대·타겟에 가장 적합한 공용부 프로그램을 P1~P4 분류로 추천하세요.
+   - P1: 필수생활기반 (취사·세탁·수납 등)
+   - P2: 커뮤니티 (소셜·라운지·이벤트)
+   - P3: 편의·웰니스 (운동·휴식·헬스케어)
+   - P4: 차별화 (이 프로젝트만의 시그니처)
+2) 임대료 대비 운영 효율과 페르소나의 라이프스타일을 모두 반영하세요.
+3) 각 카테고리 최대 5개.
+
+아래 JSON 형식으로만 응답하세요(추가 텍스트 금지):
+{
+  "p1": [{"name":"프로그램명","svc":"제공서비스 메모"}],
+  "p2": [{"name":"...","svc":"..."}],
+  "p3": [{"name":"...","svc":"..."}],
+  "p4": [{"name":"...","svc":"..."}]
+}`
     );
     const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
     const fillProg = (listId, items, color) => {
