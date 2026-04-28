@@ -1836,7 +1836,10 @@ async function callClaude(system, user) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ? JSON.stringify(data.error) : 'Edge Function 오류');
-  return data.text || '';
+  // 마크다운 코드블록(```json ... ```) 제거
+  let text = data.text || '';
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  return text;
 }
 
 /* ── 탭1: AI 입지 자료조사 ── */
