@@ -1702,8 +1702,11 @@ function attachAutoSave() {
 }
 function onAnyInput(e) {
   if (isLoading) return;
-  if (!e.target.matches('input, textarea, select')) return;
-  if (e.target.closest('.no-print') && e.target.type === 'file') return;
+  // 이벤트 없이 호출된 경우(AI 자동 채움 등)에는 바로 저장 큐
+  if (e && e.target) {
+    if (!e.target.matches('input, textarea, select')) return;
+    if (e.target.closest('.no-print') && e.target.type === 'file') return;
+  }
   clearTimeout(saveTimer);
   setSaveStatus('저장 대기…', '#888');
   saveTimer = setTimeout(saveProject, 1200);
