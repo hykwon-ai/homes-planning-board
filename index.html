@@ -1700,6 +1700,8 @@ let sb = null;
 let currentProjectId = null;
 let saveTimer = null;
 let isLoading = false;
+let ignoreRemoteUntil = 0;
+let realtimeChannel = null;
 
 async function initSupabase() {
   if (typeof supabase === 'undefined') { console.warn('Supabase SDK 미로드'); return; }
@@ -1711,6 +1713,7 @@ async function initSupabase() {
   if (projectId) {
     currentProjectId = projectId;
     await loadProject(projectId);
+    subscribeRealtime(projectId);
   }
 
   setSaveStatus('대기 중 (새 프로젝트)');
@@ -1803,7 +1806,10 @@ async function saveProject() {
       const url = new URL(window.location.href);
       url.searchParams.set('id', currentProjectId);
       window.history.replaceState({}, '', url);
+      subscribeRealtime(currentProjectId);
     }
+    // 내가 방금 한 저장이 Realtime으로 다시 돌아오면 무시 (echo 방지)
+    ignoreRemoteUntil = Date.now() + 3000;
     setSaveStatus('✓ 저장됨 · '+ new Date().toLocaleTimeString('ko-KR'), '#2E7D32');
   } catch (e) {
     console.error(e);
@@ -1819,25 +1825,204 @@ async function loadProject(id) {
     const { data, error } = await sb.from('projects').select('*').eq('id', id).single();
     if (error) throw error;
     if (!data) { alert('프로젝트를 찾을 수 없습니다'); isLoading = false; return; }
-
-    document.getElementById('pj-title').value    = data.title || '';
-    document.getElementById('pj-location').value = data.location || '';
-    document.getElementById('pj-date').value     = data.date || '';
-    document.getElementById('pj-manager').value  = data.manager || '';
-    if (data.title) updateTitle(data.title);
-
-    if (data.tab4?.floorData) { floorData = data.tab4.floorData; selFloorId = floorData[0]?.id || null; }
-    if (data.tab6?.unitTypes) { unitTypes = data.tab6.unitTypes; }
-
-    renderUnitCards(); renderFloorList();
-    if (selFloorId) selectFloor(selFloorId);
-    renderFloorSummary(); syncLifecycle(); calcRevenue();
-
+    applyProjectData(data, { preserveFocus: false });
     setSaveStatus('✓ 불러옴', '#2E7D32');
   } catch (e) {
     console.error(e);
     setSaveStatus('⚠ 불러오기 실패: '+e.message, '#C62828');
   } finally { isLoading = false; }
+}
+
+/* ── 데이터 → 화면 복원 (loadProject + Realtime 공통) ── */
+function applyProjectData(data, opts) {
+  if (!data) return;
+  const preserveFocus = opts?.preserveFocus !== false;
+  const focusEl = preserveFocus ? document.activeElement : null;
+  const focusKey = (focusEl && focusEl !== document.body) ? focusEl.id : null;
+  const wasLoading = isLoading;
+  isLoading = true;
+  try {
+    setIfNotFocused('pj-title', data.title, focusEl);
+    setIfNotFocused('pj-location', data.location, focusEl);
+    setIfNotFocused('pj-date', data.date, focusEl);
+    setIfNotFocused('pj-manager', data.manager, focusEl);
+    if (data.title) updateTitle(data.title);
+
+    // 페르소나 / 프로그램 — 동적 컬럼이므로 먼저 재구성
+    if (data.tab2?.personas) restorePersonas(data.tab2.personas, focusEl);
+    if (data.tab5?.progs)    restoreProgs(data.tab5.progs, focusEl);
+    if (Array.isArray(data.tab5?.memos)) restoreProgMemos(data.tab5.memos, focusEl);
+
+    // tab4 floor / tab6 unitTypes (기존 로직)
+    if (data.tab4?.floorData) {
+      floorData = data.tab4.floorData;
+      if (!floorData.find(f => f.id === selFloorId)) selFloorId = floorData[0]?.id || null;
+    }
+    if (data.tab6?.unitTypes) unitTypes = data.tab6.unitTypes;
+
+    renderUnitCards(); renderFloorList();
+    if (selFloorId) selectFloor(selFloorId);
+
+    // 일반 입력 영역(textarea·input·select) 일괄 복원 — 동적 행 재구성 후에 실행
+    scatterInputs(document.getElementById('tab1'), data.tab1, focusEl);
+    scatterInputs(document.getElementById('tab3'), data.tab3, focusEl);
+    if (data.tab5?.note) scatterInputs(document.querySelector('#tab5 .fgroup.mt-16'), data.tab5.note, focusEl);
+    scatterInputs(document.getElementById('tab7'), data.tab7, focusEl);
+
+    renderFloorSummary(); syncLifecycle(); calcRevenue();
+
+    if (focusKey) {
+      const restored = document.getElementById(focusKey);
+      if (restored && typeof restored.focus === 'function') {
+        try { restored.focus({ preventScroll: true }); } catch(_) { restored.focus(); }
+      }
+    }
+  } finally {
+    isLoading = wasLoading;
+  }
+}
+
+function setIfNotFocused(id, value, focusEl) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el === focusEl) return;
+  el.value = value || '';
+}
+
+function scatterInputs(container, dataObj, focusEl) {
+  if (!container || !dataObj) return;
+  const counters = {};
+  container.querySelectorAll('input[type=text], input[type=number], textarea, select').forEach((el, i) => {
+    const key = el.id || el.name || (el.placeholder ? 'ph:'+el.placeholder : 'idx:'+i);
+    const arr = dataObj[key];
+    const idx = counters[key] || 0;
+    counters[key] = idx + 1;
+    if (!Array.isArray(arr)) return;
+    if (el === focusEl) return;
+    if (arr[idx] !== undefined) el.value = arr[idx];
+  });
+}
+
+function restorePersonas(personas, focusEl) {
+  const grid = document.getElementById('persona-grid');
+  const tbody = document.getElementById('lifecycle-tbody');
+  if (!grid || !Array.isArray(personas) || personas.length === 0) return;
+  // 사용자가 페르소나 카드 안에서 입력 중이면 갱신 보류 (커서 유지)
+  if (focusEl && grid.contains(focusEl)) return;
+
+  grid.innerHTML = '';
+  if (tbody) tbody.innerHTML = '';
+
+  personas.forEach((p, i) => {
+    const rankIdx = personaRanks.indexOf(p.rank);
+    const safeIdx = rankIdx >= 0 ? rankIdx : Math.min(i, personaColors.length - 1);
+    const rank  = personaRanks[safeIdx] || ('P'+(i+1));
+    const color = personaColors[safeIdx] || '#1A1A1A';
+    const pid   = p.pid || ('p_'+Date.now()+'_'+safeIdx+'_'+i);
+
+    const col = document.createElement('div');
+    col.className = 'persona-col';
+    col.setAttribute('data-persona-id', pid);
+    col.innerHTML = `
+      <div class="persona-hd" style="background:${color}">
+        <span class="rank">${rank}</span>
+        <input class="name-input" type="text" placeholder="페르소나 이름" oninput="syncLifecycle()">
+      </div>
+      <button class="persona-delete no-print" onclick="removePersona(this)" title="이 페르소나 삭제">×</button>
+      <div class="persona-body">
+        <div class="g2">
+          <div class="fgroup"><label class="flabel">나이대</label><input class="finput" type="text" placeholder="예: 25~35세"></div>
+          <div class="fgroup"><label class="flabel">직업/신분</label><input class="finput persona-role" type="text" placeholder="직업" oninput="syncLifecycle()"></div>
+        </div>
+        <div class="fgroup"><label class="flabel">배경 (라이프스타일)</label><textarea class="ftextarea" placeholder="생활 패턴, 거주 배경 등"></textarea></div>
+        <div class="fgroup"><label class="flabel">페인포인트</label><textarea class="ftextarea" placeholder="현재 겪고 있는 불편함"></textarea></div>
+        <div class="fgroup"><label class="flabel">니즈</label><textarea class="ftextarea" placeholder="원하는 것"></textarea></div>
+        <div class="fgroup"><label class="flabel">선호 타입 / 임대료 민감도</label><input class="finput" type="text" placeholder="예: 1인실, 가격 민감"></div>
+      </div>`;
+    grid.appendChild(col);
+
+    const inputs = col.querySelectorAll('input, textarea');
+    if (Array.isArray(p.fields)) {
+      p.fields.forEach((v, idx) => { if (inputs[idx]) inputs[idx].value = v ?? ''; });
+    }
+    const nameEl = col.querySelector('.name-input');
+    if (nameEl && (!nameEl.value) && p.name) nameEl.value = p.name;
+
+    if (tbody) {
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-persona-id', pid);
+      tr.innerHTML = `
+        <td class="lc-persona-cell"></td>
+        <td><textarea placeholder=""></textarea></td>
+        <td><textarea placeholder=""></textarea></td>
+        <td><textarea placeholder=""></textarea></td>
+        <td><textarea placeholder=""></textarea></td>
+        <td><textarea placeholder=""></textarea></td>
+        <td><textarea placeholder=""></textarea></td>`;
+      tbody.appendChild(tr);
+    }
+  });
+}
+
+function restoreProgs(progs, focusEl) {
+  if (!progs) return;
+  const colors = { 'p1-list':'var(--p1)','p2-list':'var(--p2)','p3-list':'var(--p3)','p4-list':'var(--p4)' };
+  ['p1-list','p2-list','p3-list','p4-list'].forEach(listId => {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    if (focusEl && list.contains(focusEl)) return;
+    const items = progs[listId];
+    if (!Array.isArray(items)) return;
+    const c = colors[listId] || '#888';
+    list.innerHTML = '';
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'prog-item';
+      const name = (item.name || '').replace(/"/g, '&quot;');
+      const svc  = (item.svc  || '').replace(/"/g, '&quot;');
+      row.innerHTML = `<div style="width:6px;height:6px;border-radius:50%;background:${c};flex-shrink:0"></div><input class="prog-name" type="text" placeholder="프로그램명" value="${name}"><input class="prog-svc" type="text" placeholder="제공 서비스·운영 메모" value="${svc}"><button class="ibtn ibtn-del no-print" onclick="removeProg(this)">×</button>`;
+      list.appendChild(row);
+    });
+  });
+}
+
+function restoreProgMemos(memos, focusEl) {
+  const els = [...document.querySelectorAll('.prog-memo textarea')];
+  els.forEach((el, i) => {
+    if (el === focusEl) return;
+    if (memos[i] !== undefined) el.value = memos[i];
+  });
+}
+
+/* ── Realtime 양방향 동기화 ── */
+function subscribeRealtime(id) {
+  if (!sb || !id) return;
+  if (realtimeChannel) {
+    try { sb.removeChannel(realtimeChannel); } catch(_) {}
+    realtimeChannel = null;
+  }
+  realtimeChannel = sb
+    .channel('project-' + id)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'projects',
+      filter: 'id=eq.' + id
+    }, (payload) => {
+      // 내가 방금 저장한 echo는 무시
+      if (Date.now() < ignoreRemoteUntil) return;
+      try {
+        applyProjectData(payload.new, { preserveFocus: true });
+        const ts = new Date().toLocaleTimeString('ko-KR');
+        setSaveStatus('🔄 원격 동기화됨 · ' + ts, '#1565C0');
+      } catch (e) {
+        console.error('Realtime 적용 실패:', e);
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') console.log('[Realtime] 구독 시작:', id);
+      else if (status === 'CHANNEL_ERROR') console.warn('[Realtime] 채널 오류 — 테이블 Replication ON 확인 필요');
+    });
 }
 
 async function newProject() {
