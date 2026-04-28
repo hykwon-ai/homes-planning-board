@@ -162,6 +162,7 @@ body {
 .ftextarea { resize: vertical; min-height: 72px; line-height: 1.5; }
 .finput-inline { border: none; background: transparent; font-size: 13px; padding: 3px 6px; outline: none; width: 100%; font-family: inherit; }
 .finput-inline:focus { background: var(--yellow-light); border-radius: 4px; }
+textarea.finput-inline { resize: none; line-height: 1.4; min-height: 22px; field-sizing: content; overflow: hidden; word-break: break-word; }
 
 /* ── Table ── */
 .tbl-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
@@ -264,7 +265,8 @@ tfoot td { background: var(--yellow-light); font-weight: 700; padding: 10px 12px
 .map-info-card { background: var(--light); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
 .map-info-title { font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
 .map-info-title .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.map-info-item { display: flex; align-items: center; gap: 5px; padding: 3px 0; font-size: 12px; border-bottom: 1px solid #EAEAEA; }
+.map-info-item { display: flex; align-items: flex-start; gap: 5px; padding: 3px 0; font-size: 12px; border-bottom: 1px solid #EAEAEA; }
+.map-info-item .finput-inline { flex: 1; min-width: 0; }
 .map-info-item:last-child { border-bottom: none; }
 
 /* ── Lifecycle table ── */
@@ -547,38 +549,38 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
       <div class="map-info-card">
         <div class="map-info-title"><span class="dot" style="background:#E53935"></span>유입 지역 순위 (출퇴근)</div>
         <div id="pop-list">
-          <div class="map-info-item"><input class="finput-inline" placeholder="1순위: 지역명 / 규모" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
-          <div class="map-info-item"><input class="finput-inline" placeholder="2순위: 지역명 / 규모" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="1순위: 지역명 / 규모"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="2순위: 지역명 / 규모"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
         </div>
         <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('pop-list','항목 추가')">+</button>
       </div>
       <div class="map-info-card">
         <div class="map-info-title"><span class="dot" style="background:#1565C0"></span>주변 업무지구·기업</div>
         <div id="biz-list">
-          <div class="map-info-item"><input class="finput-inline" placeholder="기업명 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="기업명 / 거리"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
         </div>
         <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('biz-list','기업명 / 거리')">+</button>
       </div>
       <div class="map-info-card">
         <div class="map-info-title"><span class="dot" style="background:#6A1B9A"></span>인근 대학·어학당</div>
         <div id="univ-list">
-          <div class="map-info-item"><input class="finput-inline" placeholder="대학교명 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="대학교명 / 거리"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
         </div>
         <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('univ-list','대학교명 / 거리')">+</button>
       </div>
       <div class="map-info-card">
         <div class="map-info-title"><span class="dot" style="background:#2E7D32"></span>주변 인프라 (생활기반)</div>
         <div id="infra-list">
-          <div class="map-info-item"><input class="finput-inline" placeholder="헬스장 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
-          <div class="map-info-item"><input class="finput-inline" placeholder="편의점 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="헬스장 / 거리"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="편의점 / 거리"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
         </div>
         <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('infra-list','시설명 / 거리')">+</button>
       </div>
       <div class="map-info-card">
         <div class="map-info-title"><span class="dot" style="background:#F57F17"></span>대중교통</div>
         <div id="transit-list">
-          <div class="map-info-item"><input class="finput-inline" placeholder="지하철역 / 노선 / 거리" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
-          <div class="map-info-item"><input class="finput-inline" placeholder="버스정류장 / 노선" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="지하철역 / 노선 / 거리"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
+          <div class="map-info-item"><textarea class="finput-inline" rows="1" placeholder="버스정류장 / 노선"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button></div>
         </div>
         <button class="ibtn ibtn-add mt-8 no-print" onclick="addItem('transit-list','교통수단 / 거리')">+</button>
       </div>
@@ -994,7 +996,7 @@ function addItem(listId, placeholder) {
   const list = document.getElementById(listId);
   const item = document.createElement('div');
   item.className = 'map-info-item';
-  item.innerHTML = `<input class="finput-inline" placeholder="${placeholder}" type="text"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
+  item.innerHTML = `<textarea class="finput-inline" rows="1" placeholder="${placeholder}"></textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
   list.appendChild(item);
 }
 function removeItem(btn) { btn.closest('.map-info-item').remove(); }
@@ -1857,13 +1859,20 @@ async function aiLocationResearch() {
       '당신은 한국 부동산 개발 전문가입니다. 입지 분석 데이터를 JSON 형식으로 정확하게 반환하세요.',
       `다음 주소의 입지 정보를 조사해주세요: "${addr}"\n\n아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n{\n  "pop": ["주요 유입지역1 / 규모", "주요 유입지역2 / 규모"],\n  "biz": ["기업명 / 거리", "기업명 / 거리"],\n  "univ": ["대학교명 / 거리"],\n  "infra": ["시설명 / 거리", "시설명 / 거리"],\n  "transit": ["지하철역 / 노선 / 거리", "버스정류장 / 노선"]\n}\n각 배열은 최대 4개 항목.`
     );
-    const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const json = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    const toStr = v => {
+      if (typeof v === 'string') return v;
+      if (v && typeof v === 'object') return Object.values(v).join(' / ');
+      return String(v ?? '');
+    };
     const fill = (listId, items) => {
-      const el = document.getElementById(listId); if (!el) return;
+      const el = document.getElementById(listId); if (!el || !Array.isArray(items)) return;
       el.innerHTML = '';
       items.forEach(v => {
+        const s = toStr(v).replace(/"/g, '&quot;');
         const row = document.createElement('div'); row.className = 'map-info-item';
-        row.innerHTML = `<input class="finput-inline" type="text" value="${v.replace(/"/g,'')}"><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
+        row.innerHTML = `<textarea class="finput-inline" rows="1">${s}</textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
         el.appendChild(row);
       });
     };
@@ -1872,7 +1881,8 @@ async function aiLocationResearch() {
     if (json.univ) fill('univ-list', json.univ);
     if (json.infra) fill('infra-list', json.infra);
     if (json.transit) fill('transit-list', json.transit);
-    onAnyInput();
+    setSaveStatus('저장 대기…', '#888');
+    clearTimeout(saveTimer); saveTimer = setTimeout(saveProject, 1200);
   } catch(e) { alert('AI 조사 실패: ' + e.message); }
   finally { btn.innerHTML = orig; btn.disabled = false; }
 }
@@ -1902,7 +1912,7 @@ async function aiPersonaRecommend() {
       if (textareas[1]) textareas[1].value = p.painpoints || '';
       if (textareas[2]) textareas[2].value = p.needs || '';
     });
-    onAnyInput();
+    setSaveStatus('저장 대기…', '#888'); clearTimeout(saveTimer); saveTimer = setTimeout(saveProject, 1200);
     alert('✓ AI 페르소나 추천 완료! 내용을 확인하고 수정하세요.');
   } catch(e) { alert('AI 추천 실패: ' + e.message); }
   finally { btn.innerHTML = orig; btn.disabled = false; }
@@ -1935,7 +1945,7 @@ async function aiProgramRecommend() {
     if (json.p2) fillProg('p2-list', json.p2, 'var(--p2)');
     if (json.p3) fillProg('p3-list', json.p3, 'var(--p3)');
     if (json.p4) fillProg('p4-list', json.p4, 'var(--p4)');
-    onAnyInput();
+    setSaveStatus('저장 대기…', '#888'); clearTimeout(saveTimer); saveTimer = setTimeout(saveProject, 1200);
     alert('✓ AI 프로그램 추천 완료! 내용을 확인하고 수정하세요.');
   } catch(e) { alert('AI 추천 실패: ' + e.message); }
   finally { btn.innerHTML = orig; btn.disabled = false; }
