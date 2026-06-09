@@ -508,6 +508,7 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
   <button class="tab-btn" onclick="showTab('tab5',this)">05 공용부 프로그램</button>
   <button class="tab-btn" onclick="showTab('tab6',this)">06 전용부 타입</button>
   <button class="tab-btn" onclick="showTab('tab7',this)">07 수익 시뮬레이션</button>
+  <button class="tab-btn no-print" onclick="showTab('tab8',this)">08 프로젝트 히스토리</button>
 </nav>
 
 <div class="content">
@@ -1007,6 +1008,20 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; 
   </div>
 </div>
 
+<!-- ═══ TAB 8: 프로젝트 히스토리 ═══ -->
+<div id="tab8" class="tab-panel">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="stag">TAB 8</span> 프로젝트 히스토리</div>
+      <button class="btn btn-outline btn-sm no-print" onclick="loadProjectList()">↻ 새로고침</button>
+    </div>
+    <p class="hint mb-16">저장된 모든 프로젝트 목록입니다. 열기 버튼으로 해당 보드로 이동할 수 있습니다.</p>
+    <div id="project-list-wrap">
+      <div class="text-sm" style="color:#888">탭을 열면 자동으로 불러옵니다.</div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /content -->
 
 <!-- ═══ JAVASCRIPT ═══ -->
@@ -1017,6 +1032,7 @@ function showTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+  if (id === 'tab8') loadProjectList();
 }
 function updateTitle(v) {
   document.title = v ? v + ' | HOMES 기획보드' : 'HOMES 기획보드';
@@ -2030,6 +2046,68 @@ async function newProject() {
   const url = new URL(window.location.href);
   url.searchParams.delete('id');
   window.location.href = url.toString();
+}
+
+/* ── 탭8: 프로젝트 히스토리 ── */
+async function loadProjectList() {
+  if (!sb) { document.getElementById('project-list-wrap').innerHTML = '<div class="text-sm" style="color:#C62828">Supabase 연결 안됨</div>'; return; }
+  const wrap = document.getElementById('project-list-wrap');
+  wrap.innerHTML = '<div class="text-sm" style="color:#888">불러오는 중…</div>';
+  try {
+    const { data, error } = await sb.from('projects')
+      .select('id, title, location, date, manager, created_at, updated_at')
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      wrap.innerHTML = '<div class="text-sm" style="color:#888">저장된 프로젝트가 없습니다.</div>';
+      return;
+    }
+    wrap.innerHTML = '';
+    data.forEach(p => {
+      const isCurrent = p.id === currentProjectId;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = 'margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px';
+      card.innerHTML = `
+        <div style="flex:1;min-width:0">
+          <div class="fw7" style="font-size:15px">${p.title || '(제목 없음)'}${isCurrent ? ' <span class="chip chip-b" style="font-size:11px;vertical-align:middle">현재</span>' : ''}</div>
+          <div class="text-sm" style="color:#888;margin-top:4px">${p.location || '위치 미입력'} · ${p.date || '날짜 없음'} · 담당: ${p.manager || '미입력'}</div>
+          <div class="text-sm" style="color:#aaa;margin-top:2px">최종 수정: ${new Date(p.updated_at).toLocaleString('ko-KR')} · 생성: ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
+        </div>
+        <div class="flex gap-8" style="flex-shrink:0">
+          <button class="btn btn-primary btn-sm" onclick="openProject('${p.id}')">열기</button>
+          <button class="btn btn-outline btn-sm" style="color:#C62828;border-color:#C62828" onclick="deleteProject('${p.id}', this)">삭제</button>
+        </div>`;
+      wrap.appendChild(card);
+    });
+  } catch(e) {
+    wrap.innerHTML = `<div class="text-sm" style="color:#C62828">불러오기 실패: ${e.message}</div>`;
+  }
+}
+
+function openProject(id) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('id', id);
+  window.location.href = url.toString();
+}
+
+async function deleteProject(id, btn) {
+  if (!confirm('이 프로젝트를 삭제하시겠습니까? 복구할 수 없습니다.')) return;
+  btn.disabled = true;
+  try {
+    const { error } = await sb.from('projects').delete().eq('id', id);
+    if (error) throw error;
+    if (id === currentProjectId) {
+      currentProjectId = null;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('id');
+      window.history.replaceState({}, '', url);
+    }
+    loadProjectList();
+  } catch(e) {
+    alert('삭제 실패: ' + e.message);
+    btn.disabled = false;
+  }
 }
 
 function shareProjectUrl() {
