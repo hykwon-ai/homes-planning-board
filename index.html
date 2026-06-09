@@ -1801,7 +1801,12 @@ function collectData() {
   return {
     title: getVal('pj-title'), location: getVal('pj-location'),
     date: getVal('pj-date'), manager: getVal('pj-manager'),
-    tab1: gatherTextareas(document.getElementById('tab1')),
+    tab1: (() => {
+      const d = gatherTextareas(document.getElementById('tab1'));
+      const lv = id => [...document.querySelectorAll(`#${id} textarea.finput-inline`)].map(e => e.value);
+      d._lists = { pop: lv('pop-list'), biz: lv('biz-list'), univ: lv('univ-list'), infra: lv('infra-list'), transit: lv('transit-list') };
+      return d;
+    })(),
     tab2: { personas, insight: document.querySelector('#tab2 textarea.target-insight')?.value || '' },
     tab3: gatherTextareas(document.getElementById('tab3')),
     tab4: { floorData, unitTypesRef: unitTypes.map(t=>t.id) },
@@ -1894,6 +1899,7 @@ function applyProjectData(data, opts) {
 
     // 일반 입력 영역(textarea·input·select) 일괄 복원 — 동적 행 재구성 후에 실행
     scatterInputs(document.getElementById('tab1'), data.tab1, focusEl);
+    if (data.tab1?._lists) restoreInfoLists(data.tab1._lists, focusEl);
     scatterInputs(document.getElementById('tab3'), data.tab3, focusEl);
     if (data.tab5?.note) scatterInputs(document.querySelector('#tab5 .fgroup.mt-16'), data.tab5.note, focusEl);
     scatterInputs(document.getElementById('tab7'), data.tab7, focusEl);
@@ -1929,6 +1935,23 @@ function scatterInputs(container, dataObj, focusEl) {
     if (!Array.isArray(arr)) return;
     if (el === focusEl) return;
     if (arr[idx] !== undefined) el.value = arr[idx];
+  });
+}
+
+function restoreInfoLists(lists, focusEl) {
+  const MAP = { 'pop-list':'pop', 'biz-list':'biz', 'univ-list':'univ', 'infra-list':'infra', 'transit-list':'transit' };
+  Object.entries(MAP).forEach(([listId, key]) => {
+    const el = document.getElementById(listId);
+    if (!el || !Array.isArray(lists[key])) return;
+    if (focusEl && el.contains(focusEl)) return;
+    el.innerHTML = '';
+    lists[key].forEach(v => {
+      const safe = String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      const row = document.createElement('div');
+      row.className = 'map-info-item';
+      row.innerHTML = `<textarea class="finput-inline" rows="1">${safe}</textarea><button class="ibtn ibtn-del no-print" onclick="removeItem(this)">×</button>`;
+      el.appendChild(row);
+    });
   });
 }
 
